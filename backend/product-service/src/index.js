@@ -3,8 +3,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
-import { sequelize } from './models/index.js';
+import { Category, sequelize } from './models/index.js';
 import productRoutes from './routes/productRoutes.js';
+import { makeSlug } from './controllers/productController.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -18,6 +19,38 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http:/
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const bootstrapCategories = async () => {
+  const categories = [
+    {
+      name: 'May anh',
+      slug: 'camera',
+      description: 'Mirrorless, DSLR va compact cao cap',
+    },
+    {
+      name: 'Ong kinh',
+      slug: 'lens',
+      description: 'Prime, zoom va lens chuyen dung',
+    },
+    {
+      name: 'Phu kien',
+      slug: 'accessory',
+      description: 'Tripod, flash, filter, tui may va the nho',
+    },
+    {
+      name: 'Flycam',
+      slug: 'drone',
+      description: 'Flycam va thiet bi quay tren khong',
+    },
+  ];
+
+  for (const category of categories) {
+    await Category.findOrCreate({
+      where: { slug: category.slug || makeSlug(category.name) },
+      defaults: category,
+    });
+  }
+};
 
 app.use(
   cors({
@@ -37,7 +70,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.get('/health', (req, res) => {
   res.json({
     service: 'product-service',
-    status: 'ok (skeleton)',
+    status: 'ok',
     timestamp: new Date().toISOString(),
   });
 });
@@ -52,29 +85,43 @@ app.use((error, req, res, next) => {
   if (res.headersSent) {
     return next(error);
   }
-  console.error(error);
-  return res.status(error.statusCode || 500).json({
-    message: error.message || 'Internal server error',
+
+  const statusCode =
+    error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError'
+      ? 400
+      : error.statusCode || 500;
+
+  const details =
+    error.errors?.map((item) => ({
+      field: item.path,
+      message: item.message,
+    })) || undefined;
+
+  if (statusCode >= 500) {
+    console.error(error);
+  }
+
+  return res.status(statusCode).json({
+    message: statusCode >= 500 ? 'Internal server error' : error.message,
+    details,
   });
 });
 
 const start = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connected');
+  await sequelize.authenticate();
 
-    if (process.env.DB_SYNC !== 'false') {
-      await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
-      console.log('Database synced');
-    }
-
-    app.listen(port, () => {
-      console.log(`Product Service (skeleton) running on port ${port}`);
-    });
-  } catch (error) {
-    console.error('Failed to start Product Service:', error);
-    process.exit(1);
+  if (process.env.DB_SYNC !== 'false') {
+    await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  await bootstrapCategories();
+
+  app.listen(port, () => {
+    console.log(`Product Service running on port ${port}`);
+  });
 };
 
-start();
+start().catch((error) => {
+  console.error('Failed to start Product Service:', error);
+  process.exit(1);
+});
