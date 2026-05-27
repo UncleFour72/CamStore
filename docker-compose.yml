@@ -1,0 +1,227 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: camstore-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-camstore_root_2026}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-camstore_root_2026}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - camstore-network
+
+  adminer:
+    image: adminer:4
+    container_name: camstore-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - camstore-network
+
+  user-service:
+    build:
+      context: ./backend/user-service
+    container_name: camstore-user-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      USER_SERVICE_PORT: 3001
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - camstore-network
+
+  product-service:
+    build:
+      context: ./backend/product-service
+    container_name: camstore-product-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      PRODUCT_SERVICE_PORT: 3002
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - camstore-network
+
+  cart-service:
+    build:
+      context: ./backend/cart-service
+    container_name: camstore-cart-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      CART_SERVICE_PORT: 3003
+      PORT: 3003
+      PRODUCT_SERVICE_URL: http://product-service:3002
+    ports:
+      - "3003:3003"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - camstore-network
+
+  order-service:
+    build:
+      context: ./backend/order-service
+    container_name: camstore-order-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      ORDER_SERVICE_PORT: 3004
+      PORT: 3004
+      PRODUCT_SERVICE_URL: http://product-service:3002
+      CART_SERVICE_URL: http://cart-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3005
+    ports:
+      - "3004:3004"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      cart-service:
+        condition: service_started
+    networks:
+      - camstore-network
+
+  payment-service:
+    build:
+      context: ./backend/payment-service
+    container_name: camstore-payment-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      PAYMENT_SERVICE_PORT: 3005
+      PORT: 3005
+      ORDER_SERVICE_URL: http://order-service:3004
+    ports:
+      - "3005:3005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      order-service:
+        condition: service_started
+    networks:
+      - camstore-network
+
+  review-service:
+    build:
+      context: ./backend/review-service
+    container_name: camstore-review-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      REVIEW_SERVICE_PORT: 3006
+      PORT: 3006
+      ORDER_SERVICE_URL: http://order-service:3004
+      PRODUCT_SERVICE_URL: http://product-service:3002
+    ports:
+      - "3006:3006"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      order-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+    networks:
+      - camstore-network
+
+  blog-service:
+    build:
+      context: ./backend/blog-service
+    container_name: camstore-blog-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      BLOG_SERVICE_PORT: 3007
+      PORT: 3007
+    ports:
+      - "3007:3007"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - camstore-network
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    container_name: camstore-api-gateway
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      API_GATEWAY_PORT: 3000
+      PORT: 3000
+      USER_SERVICE_URL: http://user-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3002
+      CART_SERVICE_URL: http://cart-service:3003
+      ORDER_SERVICE_URL: http://order-service:3004
+      PAYMENT_SERVICE_URL: http://payment-service:3005
+      REVIEW_SERVICE_URL: http://review-service:3006
+      BLOG_SERVICE_URL: http://blog-service:3007
+    ports:
+      - "3000:3000"
+    depends_on:
+      user-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      cart-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      review-service:
+        condition: service_started
+      blog-service:
+        condition: service_started
+    networks:
+      - camstore-network
+
+volumes:
+  mysql_data:
+
+networks:
+  camstore-network:
+    driver: bridge
