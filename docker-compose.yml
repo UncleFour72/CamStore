@@ -201,6 +201,8 @@ services:
       BLOG_SERVICE_URL: http://blog-service:3007
     ports:
       - "3000:3000"
+    volumes:
+      - ./backend/api-gateway/uploads:/app/uploads
     depends_on:
       user-service:
         condition: service_started

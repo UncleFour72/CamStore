@@ -36,6 +36,7 @@ app.use(
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use('/uploads', express.static(fileURLToPath(new URL('../uploads/', import.meta.url))));
 
 app.get('/health', (req, res) => {
   res.json({
@@ -63,7 +64,7 @@ app.use((error, req, res, next) => {
   }
 
   return res.status(statusCode).json({
-    message: statusCode >= 500 ? 'Internal server error' : error.message,
+    message: error.publicMessage || error.message || 'Internal server error',
     details: error.details,
   });
 });
