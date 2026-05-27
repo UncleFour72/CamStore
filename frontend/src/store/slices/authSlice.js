@@ -1,8 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-
-const TOKEN_KEY = 'camstore_access_token';
-const REFRESH_TOKEN_KEY = 'camstore_refresh_token';
-const USER_KEY = 'camstore_user';
+import * as authService from '../../services/authService.js';
+import { REFRESH_TOKEN_KEY, TOKEN_KEY, USER_KEY } from '../../services/api.js';
 
 function readJson(key, fallback) {
   try {
@@ -13,21 +11,54 @@ function readJson(key, fallback) {
   }
 }
 
-function saveSession(user) {
-  const accessToken = `demo-token-${Date.now()}`;
-  const refreshToken = `demo-refresh-${Date.now()}`;
+const getErrorMessage = (error, fallback) => {
+  return error.response?.data?.message || error.message || fallback;
+};
 
-  localStorage.setItem(TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+const normalizeUser = (user) => {
+  if (!user) {
+    return null;
+  }
 
-  return { user, accessToken, refreshToken };
-}
+  const fullName =
+    user.name ||
+    user.full_name ||
+    [user.first_name, user.last_name].filter(Boolean).join(' ').trim() ||
+    user.email;
+
+  return {
+    ...user,
+    name: fullName,
+  };
+};
+
+const saveSession = ({ user, token }) => {
+  const normalizedUser = normalizeUser(user);
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  if (normalizedUser) {
+    localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
+  }
+
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+
+  return normalizedUser;
+};
+
+const clearSession = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+};
 
 const initialUser = readJson(USER_KEY, null);
 
 const initialState = {
   user: initialUser,
+  token: localStorage.getItem(TOKEN_KEY),
   isLoading: false,
   error: null,
   isAuthenticated: Boolean(initialUser || localStorage.getItem(TOKEN_KEY)),
@@ -37,17 +68,13 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async (data, { rejectWithValue }) => {
     try {
-      const user = {
-        id: `user-${Date.now()}`,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        role: 'customer',
+      const response = await authService.register(data);
+      return {
+        user: saveSession(response),
+        token: response.token,
       };
-
-      return saveSession(user).user;
     } catch (error) {
-      return rejectWithValue(error.message || 'Dang ky that bai');
+      return rejectWithValue(getErrorMessage(error, 'Dang ky that bai'));
     }
   }
 );
@@ -56,21 +83,13 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (payload, { rejectWithValue }) => {
     try {
-      if (!payload?.email || !payload?.password) {
-        throw new Error('Vui long nhap email va mat khau');
-      }
-
-      const user = {
-        id: 'demo-user',
-        name: payload.email.split('@')[0] || 'CamStore User',
-        email: payload.email,
-        phone: '0901 234 567',
-        role: payload.email.includes('admin') ? 'admin' : 'customer',
+      const response = await authService.login(payload);
+      return {
+        user: saveSession(response),
+        token: response.token,
       };
-
-      return saveSession(user).user;
     } catch (error) {
-      return rejectWithValue(error.message || 'Dang nhap that bai');
+      return rejectWithValue(getErrorMessage(error, 'Dang nhap that bai'));
     }
   }
 );
@@ -79,23 +98,49 @@ export const getProfile = createAsyncThunk(
   'auth/getProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const user = readJson(USER_KEY, null);
+      const response = await authService.getProfile();
+      const user = normalizeUser(response.user);
 
-      if (!user) {
-        throw new Error('Khong tim thay thong tin nguoi dung');
+      if (user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
       }
 
       return user;
     } catch (error) {
-      return rejectWithValue(error.message || 'Khong the lay profile');
+      clearSession();
+      return rejectWithValue(getErrorMessage(error, 'Khong the lay thong tin tai khoan'));
+    }
+  }
+);
+
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await authService.updateProfile(payload);
+      const user = normalizeUser(response.user);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      return user;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Khong the cap nhat ho so'));
+    }
+  }
+);
+
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await authService.changePassword(payload);
+      return response.message || 'Doi mat khau thanh cong';
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Khong the doi mat khau'));
     }
   }
 );
 
 export const logoutUser = createAsyncThunk('auth/logout', async () => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  clearSession();
 });
 
 const authSlice = createSlice({
@@ -106,9 +151,16 @@ const authSlice = createSlice({
       state.error = null;
     },
     setCredentials: (state, action) => {
-      const user = action.payload?.user || null;
+      const user = normalizeUser(action.payload?.user || null);
+      const token = action.payload?.token || state.token;
+
       state.user = user;
-      state.isAuthenticated = Boolean(user);
+      state.token = token;
+      state.isAuthenticated = Boolean(user || token);
+
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
 
       if (user) {
         localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -116,48 +168,56 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    const pending = (state) => {
+      state.isLoading = true;
+      state.error = null;
+    };
+    const rejected = (fallback) => (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload || fallback;
+    };
+    const applySession = (state, action) => {
+      state.isLoading = false;
+      state.user = action.payload.user;
+      state.token = action.payload.token || localStorage.getItem(TOKEN_KEY);
+      state.isAuthenticated = true;
+    };
+
     builder
-      .addCase(registerUser.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Dang ky that bai';
-      })
-      .addCase(loginUser.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Dang nhap that bai';
-      })
-      .addCase(getProfile.pending, (state) => {
-        state.isLoading = true;
-      })
+      .addCase(registerUser.pending, pending)
+      .addCase(registerUser.fulfilled, applySession)
+      .addCase(registerUser.rejected, rejected('Dang ky that bai'))
+      .addCase(loginUser.pending, pending)
+      .addCase(loginUser.fulfilled, applySession)
+      .addCase(loginUser.rejected, rejected('Dang nhap that bai'))
+      .addCase(getProfile.pending, pending)
       .addCase(getProfile.fulfilled, (state, action) => {
         state.isLoading = false;
         state.user = action.payload;
-        state.isAuthenticated = true;
+        state.token = localStorage.getItem(TOKEN_KEY);
+        state.isAuthenticated = Boolean(action.payload || state.token);
       })
       .addCase(getProfile.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || null;
+        state.user = null;
+        state.token = null;
         state.isAuthenticated = false;
+        state.error = action.payload || null;
       })
+      .addCase(updateProfile.pending, pending)
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload;
+      })
+      .addCase(updateProfile.rejected, rejected('Khong the cap nhat ho so'))
+      .addCase(changePassword.pending, pending)
+      .addCase(changePassword.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(changePassword.rejected, rejected('Khong the doi mat khau'))
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
+        state.token = null;
         state.isAuthenticated = false;
         state.error = null;
       });

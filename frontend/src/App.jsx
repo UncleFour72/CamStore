@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import AdminLayout from './components/admin/AdminLayout.jsx';
 import Footer from './components/layout/Footer.jsx';
 import Header from './components/layout/Header.jsx';
@@ -21,12 +22,39 @@ import TradeInServicePage from './pages/services/TradeInServicePage.jsx';
 import WarrantyServicePage from './pages/services/WarrantyServicePage.jsx';
 
 function ProtectedRoute({ children }) {
+  const location = useLocation();
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const location = useLocation();
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 }
 
 function RootLayout() {
   const location = useLocation();
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/register';
+
+  if (isAuthenticated && user?.role === 'admin' && !location.pathname.startsWith('/admin')) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <div className="app-shell">
@@ -50,7 +78,14 @@ export default function App() {
           <Route path="services/trade-in" element={<TradeInServicePage />} />
           <Route path="services/cleaning" element={<CleaningServicePage />} />
           <Route path="cart" element={<CartPage />} />
-          <Route path="checkout" element={<CheckoutPage />} />
+          <Route
+            path="checkout"
+            element={
+              <ProtectedRoute>
+                <CheckoutPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route
@@ -74,9 +109,9 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminLayout />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         >
           <Route index element={<AdminDashboard />} />

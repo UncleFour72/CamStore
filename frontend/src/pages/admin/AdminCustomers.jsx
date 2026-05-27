@@ -3,106 +3,270 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   Search,
+  ShieldCheck,
+  ShieldOff,
   Star,
   UserPlus,
 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import * as adminService from '../../services/adminService.js';
 import { formatPrice } from '../../utils/helpers.js';
 
-const customers = [
-  ['Nguyễn Thu Hà', 'thutha.nguyen@email.com', '0908 123 456', 125500000, 14, '12/05/2023', 'VIP GOLD', 'gold', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80'],
-  ['Lê Hoàng Nam', 'nam.lehoang@email.com', '0912 987 654', 8200000, 2, '28/10/2023', 'THÀNH VIÊN', 'member', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80'],
-  ['Phạm Minh Anh', 'minhanh.pham@email.com', '0945 456 789', 42000000, 6, '05/01/2024', 'VIP SILVER', 'silver', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&q=80'],
-  ['Trần Quốc Việt', 'viet.tran@email.com', '0989 111 222', 89000000, 11, '15/09/2023', 'VIP GOLD', 'gold', 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=120&q=80'],
-];
+const pageSize = 10;
+
+const fallbackAvatar =
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80';
 
 export default function AdminCustomers() {
+  const [customers, setCustomers] = useState([]);
+  const [metrics, setMetrics] = useState({});
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize, total: 0, totalPages: 1 });
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const params = useMemo(() => {
+    const next = { page, limit: pageSize };
+
+    if (search.trim()) {
+      next.search = search.trim();
+    }
+
+    if (status) {
+      next.is_active = status === 'active';
+    }
+
+    return next;
+  }, [page, search, status]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadCustomers = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const data = await adminService.getCustomers(params);
+
+        if (!ignore) {
+          setCustomers(data.customers);
+          setMetrics(data.metrics || {});
+          setPagination({
+            page: data.page,
+            pageSize: data.pageSize,
+            total: data.total,
+            totalPages: data.totalPages,
+          });
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.response?.data?.message || 'Khong tai duoc danh sach khach hang.');
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadCustomers();
+
+    return () => {
+      ignore = true;
+    };
+  }, [params]);
+
+  const handleStatusChange = (nextStatus) => {
+    setStatus(nextStatus);
+    setPage(1);
+  };
+
+  const handleSearchChange = (event) => {
+    setSearch(event.target.value);
+    setPage(1);
+  };
+
+  const toggleCustomerStatus = async (customer) => {
+    setUpdatingId(customer.id);
+    setNotice('');
+    setError('');
+
+    try {
+      await adminService.updateUserStatus(customer.id, !customer.is_active);
+      setNotice(customer.is_active ? 'Da khoa tai khoan khach hang.' : 'Da mo lai tai khoan khach hang.');
+      const data = await adminService.getCustomers(params);
+      setCustomers(data.customers);
+      setMetrics(data.metrics || {});
+      setPagination({
+        page: data.page,
+        pageSize: data.pageSize,
+        total: data.total,
+        totalPages: data.totalPages,
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Khong cap nhat duoc trang thai khach hang.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <main className="admin-content">
       <section className="admin-page-head">
         <div>
-          <h1>Quản lý khách hàng</h1>
-          <p>Theo dõi hành trình và thông tin chi tiết của 1,284 khách hàng.</p>
+          <h1>Quan ly khach hang</h1>
+          <p>Theo doi thong tin va trang thai tai khoan khach hang tu user-service.</p>
         </div>
-        <button type="button" className="admin-btn primary"><UserPlus size={22} /> Thêm khách hàng</button>
+        <a className="admin-btn primary" href="/admin/orders">
+          <UserPlus size={22} /> Xem don hang
+        </a>
       </section>
 
       <section className="admin-customer-filters">
         <div className="admin-filter-card customers-search">
           <label>
             <Search size={21} />
-            <input placeholder="Tìm theo tên, email hoặc số điện thoại..." />
+            <input
+              placeholder="Tim theo ten, email hoac so dien thoai..."
+              value={search}
+              onChange={handleSearchChange}
+            />
           </label>
-          <button type="button">Tất cả trạng thái <ChevronDown size={18} /></button>
+          <label className="admin-inline-select">
+            <ShieldCheck size={20} />
+            <select value={status} onChange={(event) => handleStatusChange(event.target.value)}>
+              <option value="">Tat ca trang thai</option>
+              <option value="active">Dang hoat dong</option>
+              <option value="inactive">Da khoa</option>
+            </select>
+            <ChevronDown size={18} />
+          </label>
         </div>
         <div className="loyal-card">
-          <span><Star size={24} /></span>
+          <span>
+            <Star size={24} />
+          </span>
           <div>
-            <strong>Khách hàng thân thiết</strong>
-            <small>Chi tiêu &gt; 50,000,000đ</small>
+            <strong>Tai khoan khach hang</strong>
+            <small>Du lieu lay truc tiep tu user-service</small>
           </div>
-          <button type="button" aria-label="Bật lọc khách hàng thân thiết" />
+          <button
+            type="button"
+            aria-label="Dat lai bo loc khach hang"
+            onClick={() => {
+              setSearch('');
+              handleStatusChange('');
+            }}
+          />
         </div>
       </section>
 
+      {notice && <p className="form-success">{notice}</p>}
+      {error && <p className="form-error">{error}</p>}
+
       <section className="admin-table-card">
         <div className="admin-customers-table admin-table-head-row">
-          <span>Khách hàng</span>
-          <span>Liên hệ</span>
-          <span>Tổng chi tiêu</span>
-          <span>Đơn hàng</span>
-          <span>Ngày đăng ký</span>
-          <span>Thao tác</span>
+          <span>Khach hang</span>
+          <span>Lien he</span>
+          <span>Tong chi tieu</span>
+          <span>Don hang</span>
+          <span>Ngay dang ky</span>
+          <span>Thao tac</span>
         </div>
-        {customers.map((customer) => (
-          <div className="admin-customers-table admin-table-row" key={customer[1]}>
-            <div className="admin-customer-profile">
-              <img src={customer[8]} alt={customer[0]} />
-              <div>
-                <strong>{customer[0]}</strong>
-                <span className={`customer-tier ${customer[7]}`}>{customer[6]}</span>
+
+        {loading ? (
+          <div className="admin-empty-row">Dang tai danh sach khach hang...</div>
+        ) : customers.length === 0 ? (
+          <div className="admin-empty-row">Chua co khach hang phu hop voi bo loc.</div>
+        ) : (
+          customers.map((customer) => {
+            const isUpdating = updatingId === customer.id;
+
+            return (
+              <div className="admin-customers-table admin-table-row" key={customer.id}>
+                <div className="admin-customer-profile">
+                  <img src={customer.avatar_url || fallbackAvatar} alt={customer.name} />
+                  <div>
+                    <strong>{customer.name}</strong>
+                    <span className={`customer-tier ${customer.is_active ? 'member' : 'silver'}`}>
+                      {customer.is_active ? 'DANG HOAT DONG' : 'DA KHOA'}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p>{customer.email}</p>
+                  <small>{customer.phone || 'Chua cap nhat so dien thoai'}</small>
+                </div>
+                <b>{formatPrice(customer.totalSpent)}</b>
+                <span className="order-count-pill">{customer.ordersCount}</span>
+                <span>{customer.registeredAt || '-'}</span>
+                <button
+                  type="button"
+                  className={customer.is_active ? 'admin-btn danger small' : 'admin-btn light small'}
+                  disabled={isUpdating}
+                  onClick={() => toggleCustomerStatus(customer)}
+                >
+                  {customer.is_active ? <ShieldOff size={18} /> : <ShieldCheck size={18} />}
+                  {customer.is_active ? 'Khoa' : 'Mo'}
+                </button>
               </div>
-            </div>
-            <div>
-              <p>{customer[1]}</p>
-              <small>{customer[2]}</small>
-            </div>
-            <b>{formatPrice(customer[3])}</b>
-            <span className="order-count-pill">{customer[4]}</span>
-            <span>{customer[5]}</span>
-            <button type="button" className="admin-row-action" aria-label="Thao tác"><MoreVertical size={22} /></button>
-          </div>
-        ))}
+            );
+          })
+        )}
+
         <div className="admin-table-footer">
-          <p>Đang hiển thị 1 - 10 của 1,284 khách hàng</p>
+          <p>
+            Dang hien thi {customers.length} / {pagination.total} khach hang
+          </p>
           <div className="admin-pagination">
-            <button type="button" disabled><ChevronLeft size={18} /></button>
-            <button type="button" className="active">1</button>
-            <button type="button">2</button>
-            <button type="button">3</button>
-            <span>...</span>
-            <button type="button">129</button>
-            <button type="button"><ChevronRight size={18} /></button>
+            <button type="button" disabled={pagination.page <= 1} onClick={() => setPage((value) => value - 1)}>
+              <ChevronLeft size={18} />
+            </button>
+            <button type="button" className="active">
+              {pagination.page}
+            </button>
+            <span>/</span>
+            <button type="button" disabled>
+              {pagination.totalPages}
+            </button>
+            <button
+              type="button"
+              disabled={pagination.page >= pagination.totalPages}
+              onClick={() => setPage((value) => value + 1)}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       </section>
 
       <section className="customer-metric-grid">
         <article>
-          <span>Tỷ lệ giữ chân <BarChart3 size={24} /></span>
-          <strong>68.4%</strong>
-          <p>↗ +2.4% so với tháng trước</p>
+          <span>
+            Tai khoan dang hoat dong <BarChart3 size={24} />
+          </span>
+          <strong>{Number(metrics.active_customers || 0).toLocaleString('vi-VN')}</strong>
+          <p>Khach hang co the dang nhap va mua hang</p>
         </article>
         <article>
-          <span>Giá trị trung bình <BarChart3 size={24} /></span>
-          <strong>12,450k</strong>
-          <p>Mỗi khách hàng / Năm</p>
+          <span>
+            Tai khoan da khoa <BarChart3 size={24} />
+          </span>
+          <strong>{Number(metrics.inactive_customers || 0).toLocaleString('vi-VN')}</strong>
+          <p>Khach hang tam thoi khong the dang nhap</p>
         </article>
         <article>
-          <span>Khách hàng mới <UserPlus size={24} /></span>
-          <strong>142</strong>
-          <p>Trong 30 ngày qua</p>
+          <span>
+            Tong khach hang <UserPlus size={24} />
+          </span>
+          <strong>{Number(metrics.total_customers || pagination.total || 0).toLocaleString('vi-VN')}</strong>
+          <p>Du lieu lay tu bang users</p>
         </article>
       </section>
     </main>

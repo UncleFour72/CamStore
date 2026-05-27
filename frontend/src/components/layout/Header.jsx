@@ -1,6 +1,8 @@
 import {
   ChevronDown,
+  LogOut,
   Menu,
+  PackageCheck,
   Recycle,
   ShieldCheck,
   ShoppingCart,
@@ -9,48 +11,63 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../../hooks/useCart.js';
+import { logoutUser } from '../../store/slices/authSlice.js';
 import { classNames } from '../../utils/helpers.js';
 
 const navItems = [
-  { label: 'Máy ảnh', to: '/products?category=camera', category: 'camera' },
-  { label: 'Ống kính', to: '/products?category=lens', category: 'lens' },
-  { label: 'Phụ kiện', to: '/products?category=accessory', category: 'accessory' },
+  { label: 'May anh', to: '/products?category=camera', category: 'camera' },
+  { label: 'Ong kinh', to: '/products?category=lens', category: 'lens' },
+  { label: 'Phu kien', to: '/products?category=accessory', category: 'accessory' },
 ];
 
 const serviceItems = [
   {
-    label: 'Chính sách bảo hành',
-    description: 'Điều kiện, thời hạn và quy trình bảo hành',
+    label: 'Chinh sach bao hanh',
+    description: 'Dieu kien, thoi han va quy trinh bao hanh',
     to: '/services/warranty',
     icon: ShieldCheck,
   },
   {
-    label: 'Thu cũ đổi mới',
-    description: 'Định giá thiết bị cũ và nâng cấp body/lens',
+    label: 'Thu cu doi moi',
+    description: 'Dinh gia thiet bi cu va nang cap body/lens',
     to: '/services/trade-in',
     icon: Recycle,
   },
   {
-    label: 'Vệ sinh lens & máy ảnh',
-    description: 'Chăm sóc cảm biến, lens và thân máy',
+    label: 'Ve sinh lens & may anh',
+    description: 'Cham soc cam bien, lens va than may',
     to: '/services/cleaning',
     icon: Sparkles,
   },
 ];
 
 export default function Header() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const { itemCount } = useCart();
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const location = useLocation();
   const serviceActive = location.pathname.startsWith('/services');
   const activeCategory = new URLSearchParams(location.search).get('category');
+  const userName =
+    user?.name || user?.full_name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email;
 
   function closeMenus() {
     setIsOpen(false);
     setIsServiceOpen(false);
+    setIsAccountOpen(false);
+  }
+
+  async function handleLogout() {
+    await dispatch(logoutUser());
+    closeMenus();
+    navigate('/login');
   }
 
   return (
@@ -65,7 +82,7 @@ export default function Header() {
           CamStore
         </Link>
 
-        <nav className="flex items-center justify-center gap-[30px] max-[860px]:hidden" aria-label="Danh mục chính">
+        <nav className="flex items-center justify-center gap-[30px] max-[860px]:hidden" aria-label="Danh muc chinh">
           {navItems.map((item) => (
             <Link
               key={item.label}
@@ -93,7 +110,7 @@ export default function Header() {
               onClick={() => setIsServiceOpen((value) => !value)}
               aria-expanded={isServiceOpen}
             >
-              Dịch vụ <ChevronDown size={14} />
+              Dich vu <ChevronDown size={14} />
             </button>
             {isServiceOpen && (
               <div className="service-dropdown">
@@ -130,22 +147,76 @@ export default function Header() {
           <Link
             className="cart-button relative inline-flex h-[42px] w-[42px] items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-soft"
             to="/cart"
-            aria-label="Giỏ hàng"
+            aria-label="Gio hang"
           >
             <ShoppingCart size={21} />
             {itemCount > 0 && <span className="cart-count">{itemCount}</span>}
           </Link>
-          <Link
-            className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-soft"
-            to="/profile"
-            aria-label="Tài khoản"
-          >
-            <User size={19} />
-          </Link>
+
+          {isAuthenticated ? (
+            <div className="account-menu">
+              <button
+                className="account-trigger"
+                type="button"
+                aria-label="Tai khoan"
+                aria-expanded={isAccountOpen}
+                onClick={() => setIsAccountOpen((value) => !value)}
+              >
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt={userName || 'Avatar'} />
+                ) : (
+                  <User size={19} />
+                )}
+                <span>{userName || 'Tai khoan'}</span>
+                <ChevronDown size={15} />
+              </button>
+              {isAccountOpen && (
+                <div className="account-dropdown">
+                  <Link to="/profile" onClick={closeMenus}>
+                    <User size={18} />
+                    <span>Thong tin tai khoan</span>
+                  </Link>
+                  <Link to="/orders" onClick={closeMenus}>
+                    <PackageCheck size={18} />
+                    <span>Don hang</span>
+                  </Link>
+                  {user?.role === 'admin' && (
+                    <Link to="/admin" onClick={closeMenus}>
+                      <ShieldCheck size={18} />
+                      <span>Quan tri</span>
+                    </Link>
+                  )}
+                  <button type="button" onClick={handleLogout}>
+                    <LogOut size={18} />
+                    <span>Dang xuat</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link
+                className="button secondary min-h-[42px] px-4 max-[620px]:hidden"
+                to="/login"
+                onClick={closeMenus}
+              >
+                Dang nhap
+              </Link>
+              <Link
+                className="hidden h-[42px] w-[42px] items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-soft max-[620px]:inline-flex"
+                to="/login"
+                aria-label="Dang nhap"
+                onClick={closeMenus}
+              >
+                <User size={19} />
+              </Link>
+            </>
+          )}
+
           <button
             className="hidden h-[42px] w-[42px] items-center justify-center rounded-full border-0 bg-transparent text-primary transition-colors hover:bg-surface-soft max-[860px]:inline-flex"
             type="button"
-            aria-label="Mở menu"
+            aria-label="Mo menu"
             onClick={() => setIsOpen((value) => !value)}
           >
             {isOpen ? <X size={22} /> : <Menu size={22} />}
@@ -154,7 +225,7 @@ export default function Header() {
       </div>
 
       {isOpen && (
-        <nav className="mx-auto hidden w-[calc(100%_-_48px)] max-w-container gap-2 pb-4 max-[860px]:grid max-[620px]:w-[calc(100%_-_32px)]" aria-label="Menu di động">
+        <nav className="mx-auto hidden w-[calc(100%_-_48px)] max-w-container gap-2 pb-4 max-[860px]:grid max-[620px]:w-[calc(100%_-_32px)]" aria-label="Menu di dong">
           {navItems.map((item) => (
             <Link
               className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
@@ -165,7 +236,7 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <span className="mobile-nav-label">Dịch vụ</span>
+          <span className="mobile-nav-label">Dich vu</span>
           {serviceItems.map((item) => (
             <Link
               className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
@@ -183,6 +254,48 @@ export default function Header() {
           >
             Blog
           </Link>
+          {isAuthenticated ? (
+            <>
+              <Link
+                className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
+                to="/profile"
+                onClick={closeMenus}
+              >
+                Ho so
+              </Link>
+              <Link
+                className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
+                to="/orders"
+                onClick={closeMenus}
+              >
+                Don hang
+              </Link>
+              {user?.role === 'admin' && (
+                <Link
+                  className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
+                  to="/admin"
+                  onClick={closeMenus}
+                >
+                  Quan tri
+                </Link>
+              )}
+              <button
+                className="flex min-h-11 items-center rounded-[10px] border-0 bg-transparent px-3 text-left font-extrabold text-muted hover:bg-white hover:text-primary"
+                type="button"
+                onClick={handleLogout}
+              >
+                Dang xuat
+              </button>
+            </>
+          ) : (
+            <Link
+              className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
+              to="/login"
+              onClick={closeMenus}
+            >
+              Dang nhap
+            </Link>
+          )}
         </nav>
       )}
     </header>

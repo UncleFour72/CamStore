@@ -1,8 +1,41 @@
 import { Camera, Eye, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
 import { assets } from '../data/catalog.js';
+import { clearError, registerUser } from '../store/slices/authSlice.js';
 
 export default function RegisterPage() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { isLoading, error } = useSelector((state) => state.auth);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+
+  function updateField(event) {
+    dispatch(clearError());
+    setForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    try {
+      await dispatch(registerUser(form)).unwrap();
+      navigate('/', { replace: true });
+    } catch {
+      // Redux state already carries the visible error.
+    }
+  }
+
   return (
     <main className="auth-screen">
       <section className="auth-visual">
@@ -11,16 +44,14 @@ export default function RegisterPage() {
           <span>CAMSTORE</span>
         </Link>
 
-        <img className="auth-visual-image" src={assets.lensDark} alt="Ống kính máy ảnh chuyên nghiệp" />
+        <img className="auth-visual-image" src={assets.lensDark} alt="Camera lens" />
 
         <div className="auth-visual-copy">
-          <h1>Ghi lại khoảnh khắc, kiến tạo nghệ thuật.</h1>
-          <p>
-            Tham gia cộng đồng nhiếp ảnh chuyên nghiệp và sở hữu những thiết bị quang học hàng đầu thế giới ngay hôm nay.
-          </p>
+          <h1>Tao tai khoan de mua sam nhanh hon.</h1>
+          <p>Luu thong tin giao hang, theo doi don va nhan uu dai rieng cua CamStore.</p>
         </div>
 
-        <div className="auth-visual-links" aria-label="Danh mục thiết bị">
+        <div className="auth-visual-links" aria-label="Danh muc thiet bi">
           <span>Lenses</span>
           <span>Bodies</span>
           <span>Accessories</span>
@@ -31,86 +62,100 @@ export default function RegisterPage() {
       <section className="auth-workspace">
         <div className="auth-panel-modern">
           <div className="auth-heading">
-            <h1>Tạo tài khoản mới</h1>
-            <p>Lưu thông tin mua hàng, theo dõi đơn và nhận ưu đãi dành riêng cho bạn.</p>
+            <h1>Tao tai khoan moi</h1>
+            <p>Dang ky tai khoan khach hang CamStore.</p>
           </div>
 
           <div className="auth-tabs">
-            <Link to="/login">Đăng nhập</Link>
+            <Link to="/login">Dang nhap</Link>
             <Link className="active" to="/register">
-              Đăng ký
+              Dang ky
             </Link>
           </div>
 
-          <form className="auth-form-modern">
+          <form className="auth-form-modern" onSubmit={handleSubmit}>
             <label>
-              <span>Họ và tên</span>
-              <input type="text" placeholder="Nguyễn Văn A" />
+              <span>Ho va ten</span>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={updateField}
+                placeholder="Nguyen Van A"
+                autoComplete="name"
+                required
+              />
             </label>
 
             <label>
-              <span>Email hoặc Số điện thoại</span>
-              <input type="email" placeholder="name@company.com" />
+              <span>Email</span>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={updateField}
+                placeholder="name@company.com"
+                autoComplete="email"
+                required
+              />
             </label>
 
             <label>
-              <span>Mật khẩu</span>
+              <span>So dien thoai</span>
+              <input
+                type="tel"
+                name="phone"
+                value={form.phone}
+                onChange={updateField}
+                placeholder="0901 234 567"
+                autoComplete="tel"
+              />
+            </label>
+
+            <label>
+              <span>Mat khau</span>
               <div className="auth-password-field">
-                <input type="password" placeholder="••••••••" />
-                <button type="button" aria-label="Hiện mật khẩu">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={form.password}
+                  onChange={updateField}
+                  placeholder="********"
+                  autoComplete="new-password"
+                  minLength={6}
+                  required
+                />
+                <button
+                  type="button"
+                  aria-label="Hien mat khau"
+                  onClick={() => setShowPassword((value) => !value)}
+                >
                   <Eye size={20} />
                 </button>
               </div>
             </label>
 
+            {error && <p className="form-error">{error}</p>}
+
             <label className="auth-remember">
               <input type="checkbox" />
-              <span>Tôi đồng ý nhận thông tin ưu đãi từ CamStore</span>
+              <span>Toi dong y nhan thong tin uu dai tu CamStore</span>
             </label>
 
-            <button className="auth-submit" type="button">
-              Đăng ký tài khoản
+            <button className="auth-submit" type="submit" disabled={isLoading}>
+              {isLoading ? 'Dang dang ky...' : 'Dang ky tai khoan'}
             </button>
           </form>
-
-          <div className="auth-divider">
-            <span>HOẶC ĐĂNG KÝ VỚI</span>
-          </div>
-
-          <div className="auth-social-grid">
-            <button type="button">
-              <span className="google-mark">G</span>
-              Google
-            </button>
-            <button type="button">
-              <span className="facebook-mark">f</span>
-              Facebook
-            </button>
-          </div>
-
-          <p className="auth-terms">
-            Bằng việc tiếp tục, bạn đồng ý với <Link to="/services/warranty">Điều khoản dịch vụ</Link> và{' '}
-            <Link to="/services/warranty">Chính sách bảo mật</Link> của CamStore.
-          </p>
 
           <div className="auth-security">
             <span>
               <ShieldCheck size={16} /> SSL SECURE
             </span>
             <span>
-              <LockKeyhole size={16} /> AES-256 AUTH
+              <LockKeyhole size={16} /> JWT AUTH
             </span>
           </div>
         </div>
-
-        <footer className="auth-footer">
-          <span>© 2024 CamStore. Đẳng cấp nhiếp ảnh chuyên nghiệp.</span>
-          <nav aria-label="Liên kết hỗ trợ">
-            <Link to="/profile">Về chúng tôi</Link>
-            <Link to="/profile">Liên hệ</Link>
-            <Link to="/services/warranty">Hỗ trợ</Link>
-          </nav>
-        </footer>
       </section>
     </main>
   );

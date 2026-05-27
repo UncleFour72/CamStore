@@ -1,4 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
+import addressReducer from './slices/addressSlice.js';
 import authReducer from './slices/authSlice.js';
 import cartReducer from './slices/cartSlice.js';
 import orderReducer from './slices/orderSlice.js';
@@ -8,6 +9,7 @@ import wishlistReducer from './slices/wishlistSlice.js';
 
 export const store = configureStore({
   reducer: {
+    address: addressReducer,
     auth: authReducer,
     cart: cartReducer,
     order: orderReducer,
