@@ -2,11 +2,11 @@ import sequelize from '../config/database.js';
 import Cart from './cart.js';
 import CartItem from './cartItem.js';
 
-// Relationships
 Cart.hasMany(CartItem, {
   as: 'items',
   foreignKey: 'cart_id',
   onDelete: 'CASCADE',
+  onUpdate: 'CASCADE',
 });
 
 CartItem.belongsTo(Cart, {

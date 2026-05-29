@@ -30,14 +30,14 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.get('/health', (req, res) => {
   res.json({
     service: 'cart-service',
-    status: 'ok (skeleton)',
+    status: 'ok',
     timestamp: new Date().toISOString(),
   });
 });
@@ -52,29 +52,41 @@ app.use((error, req, res, next) => {
   if (res.headersSent) {
     return next(error);
   }
-  console.error(error);
-  return res.status(error.statusCode || 500).json({
-    message: error.message || 'Internal server error',
+
+  const statusCode =
+    error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError'
+      ? 400
+      : error.statusCode || 500;
+
+  const details =
+    error.errors?.map((item) => ({
+      field: item.path,
+      message: item.message,
+    })) || undefined;
+
+  if (statusCode >= 500) {
+    console.error(error);
+  }
+
+  return res.status(statusCode).json({
+    message: statusCode >= 500 ? 'Internal server error' : error.message,
+    details,
   });
 });
 
 const start = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Database connected');
+  await sequelize.authenticate();
 
-    if (process.env.DB_SYNC !== 'false') {
-      await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
-      console.log('Database synced');
-    }
-
-    app.listen(port, () => {
-      console.log(`Cart Service (skeleton) running on port ${port}`);
-    });
-  } catch (error) {
-    console.error('Failed to start Cart Service:', error);
-    process.exit(1);
+  if (process.env.DB_SYNC !== 'false') {
+    await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  app.listen(port, () => {
+    console.log(`Cart Service running on port ${port}`);
+  });
 };
 
-start();
+start().catch((error) => {
+  console.error('Failed to start Cart Service:', error);
+  process.exit(1);
+});
