@@ -1,19 +1,37 @@
 import { Router } from 'express';
 import {
   cancelOrder,
-  createOrder,
+  checkout,
+  createWarranty,
   getOrderById,
   getOrders,
+  getWarranties,
+  getWarrantyById,
+  lookupWarranties,
+  retryOrderPayment,
   updateOrderStatus,
+  updateWarranty,
 } from '../controllers/orderController.js';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import {
+  authenticate,
+  optionalAuthenticate,
+  requireAdmin,
+  requireInternalOrAdmin,
+} from '../middleware/auth.js';
 
 const router = Router();
 
+router.post('/orders/checkout', authenticate, checkout);
 router.get('/orders', authenticate, getOrders);
-router.get('/orders/:id', authenticate, getOrderById);
-router.post('/orders', authenticate, createOrder);
-router.put('/orders/:id/status', authenticate, requireAdmin, updateOrderStatus);
-router.delete('/orders/:id', authenticate, cancelOrder);
+router.patch('/orders/:id/cancel', authenticate, cancelOrder);
+router.post('/orders/:id/payment/retry', authenticate, retryOrderPayment);
+router.get('/orders/:idOrNumber', authenticate, getOrderById);
+router.patch('/orders/:id/status', optionalAuthenticate, requireInternalOrAdmin, updateOrderStatus);
+
+router.get('/warranties/lookup', lookupWarranties);
+router.get('/warranties', authenticate, requireAdmin, getWarranties);
+router.get('/warranties/:id', authenticate, getWarrantyById);
+router.post('/warranties', authenticate, requireAdmin, createWarranty);
+router.put('/warranties/:id', authenticate, requireAdmin, updateWarranty);
 
 export default router;

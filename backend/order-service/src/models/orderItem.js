@@ -17,20 +17,49 @@ OrderItem.init(
     product_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      validate: {
+        min: 1,
+      },
+    },
+    product_name: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    product_price: {
+      type: DataTypes.DECIMAL(15, 0),
+      allowNull: false,
+      validate: {
+        min: 0,
+      },
+    },
+    product_image: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
     },
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      validate: {
+        min: 1,
+      },
     },
-    price: {
+    subtotal: {
       type: DataTypes.DECIMAL(15, 0),
       allowNull: false,
+      validate: {
+        min: 0,
+      },
     },
   },
   {
     sequelize,
     modelName: 'OrderItem',
     tableName: 'order_items',
+    updatedAt: false,
+    indexes: [
+      { fields: ['order_id'] },
+      { fields: ['product_id'] },
+    ],
   }
 );
 

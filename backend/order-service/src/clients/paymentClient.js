@@ -20,3 +20,25 @@ export const createPayment = async (payload) => {
     body: JSON.stringify(payload),
   });
 };
+
+export const retryPayment = async (orderId, payload) => {
+  return requestJson(`${PAYMENT_SERVICE_URL}/api/payments/order/${orderId}/retry`, {
+    method: 'PATCH',
+    headers: internalHeaders(),
+    body: JSON.stringify(payload),
+  });
+};
+
+export const getPaymentByOrderId = async (orderId) => {
+  try {
+    return await requestJson(`${PAYMENT_SERVICE_URL}/api/payments/order/${orderId}`, {
+      headers: internalHeaders(),
+    });
+  } catch (error) {
+    if (error.statusCode === 404) {
+      return null;
+    }
+
+    throw error;
+  }
+};
