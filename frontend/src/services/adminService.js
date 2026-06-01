@@ -1,4 +1,5 @@
 import api, { unwrapData } from './api.js';
+import { normalizeOrder } from './orderService.js';
 import { normalizeCategory, normalizeProduct } from './productService.js';
 
 const normalizePagination = (pagination = {}, params = {}) => {
@@ -68,6 +69,25 @@ export const updateProduct = async (id, payload) => {
 export const deleteProduct = async (id) => {
   const data = await api.delete(`/products/${id}`).then(unwrapData);
   return normalizeProduct(data.product);
+};
+
+export const getOrders = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/orders', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.orders || []).map(normalizeOrder).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const updateOrderStatus = async (id, status, note) => {
+  const data = await api.patch(`/orders/${id}/status`, { status, note }).then(unwrapData);
+  return normalizeOrder(data.order);
+};
+
+export const getOrderStatusStats = async () => {
+  return api.get('/orders/stats/by-status').then(unwrapData);
 };
 
 const normalizeCustomer = (customer) => {

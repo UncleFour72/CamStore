@@ -1,8 +1,14 @@
 import { Banknote, Building2, LockKeyhole, QrCode, ShieldCheck, ShoppingBasket, Truck } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
 import CartItem from '../components/common/CartItem.jsx';
+import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import ToastNotification from '../components/common/ToastNotification.jsx';
 import { useCart } from '../hooks/useCart.js';
+import { fetchAddresses } from '../store/slices/addressSlice.js';
+import { fetchCart } from '../store/slices/cartSlice.js';
+import { checkoutOrder, clearOrderError } from '../store/slices/orderSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
 const paymentMethods = [
@@ -11,14 +17,129 @@ const paymentMethods = [
   { id: 'cod', label: 'Thanh toán khi nhận hàng (COD)', icon: Banknote },
 ];
 
+const emptyShippingForm = {
+  full_name: '',
+  phone: '',
+  address_line: '',
+  ward: '',
+  district: '',
+  city: '',
+  note: '',
+};
+
+const formatAddress = (address) => {
+  return [address?.address_line, address?.ward, address?.district, address?.city].filter(Boolean).join(', ');
+};
+
+const buildAddressPayload = (address, paymentMethod, note) => ({
+  shipping_name: address.full_name,
+  shipping_phone: address.phone,
+  shipping_address: address.address_line,
+  shipping_ward: address.ward,
+  shipping_district: address.district,
+  shipping_city: address.city,
+  payment_method: paymentMethod,
+  note,
+});
+
 export default function CheckoutPage() {
-  const { items, itemCount, subtotal, shipping, total } = useCart();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const {
+    items,
+    itemCount,
+    subtotal,
+    shipping,
+    total,
+    isLoading: cartLoading,
+    error: cartError,
+  } = useCart();
+  const { addresses, isLoading: addressLoading, error: addressError } = useSelector((state) => state.address);
+  const { user } = useSelector((state) => state.auth);
+  const { isLoading: orderLoading, error: orderError } = useSelector((state) => state.order);
   const [paymentMethod, setPaymentMethod] = useState('vnpay');
   const [toast, setToast] = useState('');
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [useManualAddress, setUseManualAddress] = useState(false);
+  const [shippingForm, setShippingForm] = useState(emptyShippingForm);
 
-  function handleOrderSubmit(event) {
+  const selectedAddress = useMemo(() => {
+    return addresses.find((address) => String(address.id) === String(selectedAddressId)) || null;
+  }, [addresses, selectedAddressId]);
+  const manualAddressActive = useManualAddress || !selectedAddress;
+
+  useEffect(() => {
+    dispatch(fetchAddresses());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!selectedAddressId && addresses.length > 0) {
+      const defaultAddress = addresses.find((address) => address.is_default) || addresses[0];
+      setSelectedAddressId(defaultAddress.id);
+      setUseManualAddress(false);
+    }
+  }, [addresses, selectedAddressId]);
+
+  useEffect(() => {
+    setShippingForm((current) => ({
+      ...current,
+      full_name: current.full_name || user?.name || user?.full_name || '',
+      phone: current.phone || user?.phone || '',
+    }));
+  }, [user]);
+
+  function updateShippingField(event) {
+    dispatch(clearOrderError());
+    setShippingForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
+  }
+
+  function validateManualAddress() {
+    return ['full_name', 'phone', 'address_line', 'ward', 'district', 'city'].every((field) =>
+      String(shippingForm[field] || '').trim()
+    );
+  }
+
+  async function handleOrderSubmit(event) {
     event.preventDefault();
-    setToast('Đơn hàng đã được ghi nhận. CamStore sẽ liên hệ xác nhận sớm.');
+    setToast('');
+
+    if (itemCount === 0) {
+      setToast('Giỏ hàng đang trống, hãy chọn sản phẩm trước khi checkout.');
+      return;
+    }
+
+    if (manualAddressActive && !validateManualAddress()) {
+      setToast('Vui lòng nhập đầy đủ thông tin giao hàng.');
+      return;
+    }
+
+    const payload = manualAddressActive
+      ? buildAddressPayload(shippingForm, paymentMethod, shippingForm.note)
+      : buildAddressPayload(selectedAddress, paymentMethod, shippingForm.note);
+
+    try {
+      const result = await dispatch(checkoutOrder(payload)).unwrap();
+      await dispatch(fetchCart());
+
+      if (result.paymentUrl && paymentMethod !== 'cod') {
+        window.location.assign(result.paymentUrl);
+        return;
+      }
+
+      const orderNumber = result.order?.orderNumber || 'mới';
+      const paymentNote =
+        result.paymentError && paymentMethod !== 'cod'
+          ? ` Đơn thanh toán online chưa tạo được link: ${result.paymentError}.`
+          : '';
+
+      setToast(`Đơn hàng ${orderNumber} đã được ghi nhận.${paymentNote}`);
+      window.setTimeout(() => navigate('/orders', { replace: true }), 900);
+    } catch {
+      // Redux state already carries the visible error.
+    }
   }
 
   return (
@@ -33,11 +154,23 @@ export default function CheckoutPage() {
               <h2>Giỏ hàng của bạn ({itemCount})</h2>
               <ShoppingBasket size={25} />
             </div>
-            <div className="cart-lines">
-              {items.map((item) => (
-                <CartItem key={item.product.id} item={item} compact />
-              ))}
-            </div>
+            {cartLoading && items.length === 0 ? (
+              <LoadingSpinner label="Đang tải giỏ hàng" />
+            ) : items.length > 0 ? (
+              <div className="cart-lines">
+                {items.map((item) => (
+                  <CartItem key={item.id} item={item} compact />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state inline">
+                <h2>Giỏ hàng đang trống</h2>
+                <p>Hãy thêm sản phẩm vào giỏ trước khi thanh toán.</p>
+                <Link className="button secondary" to="/products">
+                  Xem sản phẩm
+                </Link>
+              </div>
+            )}
           </section>
 
           <section className="panel shipping-panel">
@@ -45,32 +178,88 @@ export default function CheckoutPage() {
               <Truck size={25} />
               <h2>Thông tin giao hàng</h2>
             </div>
-            <div className="form-grid">
-              <label>
-                <span>Họ và tên</span>
-                <input defaultValue="Nguyễn Văn A" name="fullName" />
-              </label>
-              <label>
-                <span>Số điện thoại</span>
-                <input defaultValue="0901 234 567" name="phone" />
-              </label>
+
+            {addressLoading ? (
+              <LoadingSpinner label="Đang tải địa chỉ" />
+            ) : addresses.length > 0 ? (
+              <div className="checkout-address-list">
+                {addresses.map((address) => (
+                  <label
+                    className={String(selectedAddressId) === String(address.id) && !useManualAddress ? 'checkout-address active' : 'checkout-address'}
+                    key={address.id}
+                  >
+                    <input
+                      type="radio"
+                      name="saved_address"
+                      checked={String(selectedAddressId) === String(address.id) && !useManualAddress}
+                      onChange={() => {
+                        setSelectedAddressId(address.id);
+                        setUseManualAddress(false);
+                      }}
+                    />
+                    <span>
+                      <strong>{address.full_name}</strong>
+                      <small>{address.phone}</small>
+                      <em>{formatAddress(address)}</em>
+                    </span>
+                  </label>
+                ))}
+                <button className="button secondary checkout-manual-toggle" type="button" onClick={() => setUseManualAddress((value) => !value)}>
+                  {manualAddressActive ? 'Dùng địa chỉ đã lưu' : 'Nhập địa chỉ mới'}
+                </button>
+              </div>
+            ) : (
+              <p className="field-note">Bạn chưa có địa chỉ đã lưu, hãy nhập địa chỉ giao hàng cho đơn này.</p>
+            )}
+
+            {manualAddressActive && (
+              <div className="form-grid">
+                <label>
+                  <span>Họ và tên</span>
+                  <input name="full_name" value={shippingForm.full_name} onChange={updateShippingField} required />
+                </label>
+                <label>
+                  <span>Số điện thoại</span>
+                  <input name="phone" value={shippingForm.phone} onChange={updateShippingField} required />
+                </label>
+                <label className="span-2">
+                  <span>Địa chỉ nhận hàng</span>
+                  <input
+                    placeholder="Số nhà, tên đường"
+                    name="address_line"
+                    value={shippingForm.address_line}
+                    onChange={updateShippingField}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Phường/Xã</span>
+                  <input name="ward" value={shippingForm.ward} onChange={updateShippingField} required />
+                </label>
+                <label>
+                  <span>Quận/Huyện</span>
+                  <input name="district" value={shippingForm.district} onChange={updateShippingField} required />
+                </label>
+                <label>
+                  <span>Tỉnh/Thành phố</span>
+                  <input name="city" value={shippingForm.city} onChange={updateShippingField} required />
+                </label>
+              </div>
+            )}
+
+            <div className="form-grid checkout-note-grid">
               <label className="span-2">
-                <span>Địa chỉ nhận hàng</span>
-                <input placeholder="Số nhà, tên đường, Phường/Xã..." name="address" />
-              </label>
-              <label>
-                <span>Tỉnh / Thành phố</span>
-                <select defaultValue="Hồ Chí Minh" name="city">
-                  <option>Hồ Chí Minh</option>
-                  <option>Hà Nội</option>
-                  <option>Đà Nẵng</option>
-                </select>
-              </label>
-              <label>
                 <span>Ghi chú (Tùy chọn)</span>
-                <input placeholder="Ví dụ: Giao vào giờ hành chính" name="note" />
+                <input
+                  placeholder="Ví dụ: Giao vào giờ hành chính"
+                  name="note"
+                  value={shippingForm.note}
+                  onChange={updateShippingField}
+                />
               </label>
             </div>
+
+            {(addressError || cartError) && <p className="form-error">{addressError || cartError}</p>}
           </section>
         </div>
 
@@ -117,8 +306,10 @@ export default function CheckoutPage() {
             })}
           </div>
 
-          <button className="button primary full order-button" type="submit">
-            ĐẶT HÀNG NGAY <LockKeyhole size={21} />
+          {orderError && <p className="form-error">{orderError}</p>}
+
+          <button className="button primary full order-button" type="submit" disabled={orderLoading || itemCount === 0}>
+            {orderLoading ? 'ĐANG ĐẶT HÀNG...' : 'ĐẶT HÀNG NGAY'} <LockKeyhole size={21} />
           </button>
           <p className="secure-note">
             <ShieldCheck size={15} />

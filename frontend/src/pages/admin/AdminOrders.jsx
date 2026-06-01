@@ -6,39 +6,118 @@ import {
   ChevronRight,
   ClipboardList,
   Download,
-  MoreVertical,
-  Plus,
   RotateCcw,
   Truck,
   XCircle,
 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import * as adminService from '../../services/adminService.js';
 import { formatPrice } from '../../utils/helpers.js';
 
-const orderStats = [
-  ['Đang xử lý', '24', ClipboardList, 'blue'],
-  ['Đang giao', '12', Truck, 'orange'],
-  ['Hoàn thành', '156', CheckCircle2, 'indigo'],
-  ['Đã hủy', '8', XCircle, 'red'],
-];
+const statusLabels = {
+  pending: 'Chờ xác nhận',
+  confirmed: 'Đã xác nhận',
+  processing: 'Đang xử lý',
+  shipping: 'Đang giao',
+  delivered: 'Hoàn thành',
+  cancelled: 'Đã hủy',
+};
 
-const orderRows = [
-  ['#ORD-88291', 'Lê Hoàng Nam', 'namlh@gmail.com', '14:20, 24/10/2023', 45200000, 'CHUYỂN KHOẢN', 'Mới', 'new'],
-  ['#ORD-88285', 'Minh Tuấn', 'tuan.minh@outlook.com', '09:15, 24/10/2023', 12500000, 'TIỀN MẶT (COD)', 'Đang giao', 'shipping'],
-  ['#ORD-88280', 'Hương Anh', 'huonganh_9x@yahoo.com', '18:45, 23/10/2023', 89000000, 'CHUYỂN KHOẢN', 'Hoàn thành', 'done'],
-  ['#ORD-88275', 'Quốc Khánh', 'khanh.q@fpt.com.vn', '11:30, 23/10/2023', 5400000, 'VÍ ĐIỆN TỬ', 'Đã hủy', 'cancel'],
-];
+const statusOptions = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'];
+const statusTransitions = {
+  pending: ['pending', 'confirmed', 'processing', 'cancelled'],
+  confirmed: ['confirmed', 'processing', 'shipping', 'delivered', 'cancelled'],
+  processing: ['processing', 'shipping', 'delivered', 'cancelled'],
+  shipping: ['shipping', 'delivered', 'cancelled'],
+  delivered: ['delivered'],
+  cancelled: ['cancelled'],
+};
+const pageSize = 10;
 
 export default function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [stats, setStats] = useState({});
+  const [filters, setFilters] = useState({ page: 1, status: '' });
+  const [pagination, setPagination] = useState({ page: 1, pageSize, total: 0, totalPages: 1 });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const orderStats = useMemo(
+    () => [
+      ['Chờ xác nhận', stats.pending || 0, ClipboardList, 'blue'],
+      ['Đang giao', stats.shipping || 0, Truck, 'orange'],
+      ['Hoàn thành', stats.delivered || 0, CheckCircle2, 'indigo'],
+      ['Đã hủy', stats.cancelled || 0, XCircle, 'red'],
+    ],
+    [stats]
+  );
+
+  async function loadOrders(nextFilters = filters) {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const [ordersData, statusData] = await Promise.all([
+        adminService.getOrders({
+          page: nextFilters.page,
+          limit: pageSize,
+          status: nextFilters.status,
+        }),
+        adminService.getOrderStatusStats(),
+      ]);
+
+      setOrders(ordersData.items);
+      setPagination(ordersData);
+      setStats(statusData.statuses || {});
+    } catch (loadError) {
+      setError(loadError.response?.data?.message || 'Không thể tải đơn hàng');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadOrders(filters);
+  }, [filters.page, filters.status]);
+
+  function updateFilter(key, value) {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+      page: key === 'page' ? value : 1,
+    }));
+  }
+
+  async function handleStatusChange(order, status) {
+    if (order.status === status) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setIsLoading(true);
+
+    try {
+      await adminService.updateOrderStatus(order.orderId, status, `Admin changed status to ${status}`);
+      setMessage(`Đơn ${order.orderNumber} đã chuyển sang ${statusLabels[status]}.`);
+      await loadOrders(filters);
+    } catch (statusError) {
+      setError(statusError.response?.data?.message || 'Không thể cập nhật trạng thái đơn hàng');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <main className="admin-content">
       <section className="admin-page-head">
         <div>
           <h1>Quản lý đơn hàng</h1>
-          <p>Theo dõi và xử lý các đơn hàng từ hệ thống CamStore.</p>
+          <p>Theo dõi và xử lý các đơn hàng từ Order Service.</p>
         </div>
         <div className="admin-head-actions">
           <button type="button" className="admin-btn light"><Download size={20} /> Xuất báo cáo</button>
-          <button type="button" className="admin-btn primary"><Plus size={22} /> Tạo đơn mới</button>
         </div>
       </section>
 
@@ -56,12 +135,22 @@ export default function AdminOrders() {
 
       <section className="admin-filter-card orders-filter">
         <span>Trạng thái:</span>
-        <button type="button">Tất cả trạng thái</button>
-        <span>Thời gian:</span>
-        <button type="button">Hôm nay <ChevronDown size={18} /></button>
-        <button type="button" className="solid">Lọc dữ liệu</button>
-        <button type="button" className="ghost">Xóa lọc</button>
+        <label className="admin-inline-select">
+          <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
+            <option value="">Tất cả trạng thái</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {statusLabels[status]}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={18} />
+        </label>
+        <button type="button" className="ghost" onClick={() => updateFilter('status', '')}>Xóa lọc</button>
       </section>
+
+      {message && <p className="form-success">{message}</p>}
+      {error && <p className="form-error">{error}</p>}
 
       <section className="admin-table-card">
         <div className="admin-orders-table admin-table-head-row">
@@ -73,56 +162,85 @@ export default function AdminOrders() {
           <span>Trạng thái</span>
           <span>Hành động</span>
         </div>
-        {orderRows.map((order) => (
-          <div className="admin-orders-table admin-table-row" key={order[0]}>
-            <a href="/admin/orders">{order[0]}</a>
+        {orders.map((order) => (
+          <div className="admin-orders-table admin-table-row" key={order.orderId}>
+            <a href={`/orders`}>{order.orderNumber}</a>
             <div className="admin-customer-cell">
-              <span>{order[1].split(' ').map((part) => part[0]).slice(-2).join('')}</span>
+              <span>{String(order.customerName || 'CS').slice(0, 2).toUpperCase()}</span>
               <div>
-                <strong>{order[1]}</strong>
-                <small>{order[2]}</small>
+                <strong>{order.customerName || 'Khách hàng'}</strong>
+                <small>{order.phoneNumber || 'Chưa có SĐT'}</small>
               </div>
             </div>
-            <span>{order[3]}</span>
-            <b>{formatPrice(order[4])}</b>
-            <span className="payment-badge">{order[5]}</span>
-            <span className={`admin-status ${order[7]}`}>{order[6]}</span>
-            <button type="button" className="admin-row-action" aria-label="Hành động"><MoreVertical size={22} /></button>
+            <span>{order.date}</span>
+            <b>{formatPrice(order.total)}</b>
+            <span className={order.isPaid ? 'payment-badge paid' : 'payment-badge'}>
+              {order.paymentMethodLabel}: {order.paymentStatusLabel}
+            </span>
+            <span className={`admin-status ${order.status === 'cancelled' ? 'cancel' : order.status === 'delivered' ? 'done' : order.status === 'shipping' ? 'shipping' : 'new'}`}>
+              {order.statusLabel}
+            </span>
+            <label className="admin-status-select">
+              <select
+                value={order.status}
+                onChange={(event) => handleStatusChange(order, event.target.value)}
+                disabled={isLoading || order.status === 'cancelled' || order.status === 'delivered'}
+              >
+                {(statusTransitions[order.status] || [order.status]).map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabels[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         ))}
+        {orders.length === 0 && !isLoading && (
+          <div className="empty-state inline">
+            <h2>Chưa có đơn hàng</h2>
+            <p>Các đơn mới sẽ xuất hiện tại đây sau khi khách checkout.</p>
+          </div>
+        )}
         <div className="admin-table-footer">
-          <p>Hiển thị 1 - 10 trên 1.250 đơn hàng</p>
+          <p>Hiển thị {orders.length} trên {pagination.total} đơn hàng</p>
           <div className="admin-pagination">
-            <button type="button" disabled><ChevronLeft size={18} /></button>
-            <button type="button" className="active">1</button>
-            <button type="button">2</button>
-            <button type="button">3</button>
-            <span>...</span>
-            <button type="button">125</button>
-            <button type="button"><ChevronRight size={18} /></button>
+            <button
+              type="button"
+              disabled={filters.page <= 1}
+              onClick={() => updateFilter('page', Math.max(1, filters.page - 1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button type="button" className="active">{filters.page}</button>
+            <button
+              type="button"
+              disabled={filters.page >= pagination.totalPages}
+              onClick={() => updateFilter('page', Math.min(pagination.totalPages, filters.page + 1))}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       </section>
 
       <section className="admin-order-bottom">
         <article className="admin-card admin-bar-card">
-          <h2><BarChart3 size={24} /> Biểu đồ tăng trưởng đơn hàng</h2>
+          <h2><BarChart3 size={24} /> Phân bổ trạng thái đơn hàng</h2>
           <div className="admin-bars">
-            {[38, 58, 72, 46, 86].map((height, index) => (
-              <span key={index} style={{ height: `${height}%` }} />
-            ))}
+            {statusOptions.slice(0, 5).map((status) => {
+              const max = Math.max(1, ...statusOptions.map((item) => stats[item] || 0));
+              return <span key={status} style={{ height: `${Math.max(8, ((stats[status] || 0) / max) * 100)}%` }} />;
+            })}
           </div>
         </article>
         <article className="admin-card admin-activity-card">
           <h2><RotateCcw size={24} /> Hoạt động mới nhất</h2>
-          <div>
-            <span><Truck size={22} /></span>
-            <p><strong>Đơn hàng mới #88291</strong>Lê Hoàng Nam vừa đặt một Sony A7 IV.</p>
-          </div>
-          <div>
-            <span><CheckCircle2 size={22} /></span>
-            <p><strong>Thanh toán hoàn tất</strong>Đơn #88280 đã xác nhận chuyển khoản.</p>
-          </div>
+          {orders.slice(0, 2).map((order) => (
+            <div key={order.orderId}>
+              <span><Truck size={22} /></span>
+              <p><strong>{order.orderNumber}</strong>{order.customerName || 'Khách hàng'} - {order.statusLabel}</p>
+            </div>
+          ))}
         </article>
       </section>
     </main>

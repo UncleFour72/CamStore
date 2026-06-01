@@ -13,26 +13,38 @@ const api = axios.create({
 });
 
 const MESSAGE_MAP = {
-  'Invalid email or password': 'Email hoac mat khau khong dung.',
-  'User account is disabled': 'Tai khoan da bi khoa. Vui long lien he CamStore.',
-  'Email is already registered': 'Email nay da duoc dang ky.',
-  'Password must contain at least 6 characters': 'Mat khau phai co it nhat 6 ky tu.',
-  'Current password is incorrect': 'Mat khau hien tai khong dung.',
-  'Authentication token is required': 'Vui long dang nhap de tiep tuc.',
-  'Invalid or expired token': 'Phien dang nhap da het han. Vui long dang nhap lai.',
+  'Invalid email or password': 'Email hoặc mật khẩu không đúng.',
+  'User account is disabled': 'Tài khoản đã bị khóa. Vui lòng liên hệ CamStore.',
+  'Email is already registered': 'Email này đã được đăng ký.',
+  'Password must contain at least 6 characters': 'Mật khẩu phải có ít nhất 6 ký tự.',
+  'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
+  'Authentication token is required': 'Vui lòng đăng nhập để tiếp tục.',
+  'Invalid or expired token': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  'Cart is empty': 'Giỏ hàng đang trống.',
+  'Product not found': 'Không tìm thấy sản phẩm.',
+  'Order not found': 'Không tìm thấy đơn hàng.',
+  'You cannot access this order': 'Bạn không có quyền xem đơn hàng này.',
+  'You cannot cancel this order': 'Bạn không có quyền hủy đơn hàng này.',
+  'Only pending orders can be cancelled by customers': 'Chỉ có thể hủy đơn hàng đang chờ xác nhận.',
+  'Only pending unpaid orders can be paid or changed': 'Chỉ có thể thanh toán hoặc đổi phương thức với đơn đang chờ và chưa thanh toán.',
+  'Only online orders can use online payment retry': 'Chỉ đơn online mới có thể thanh toán lại.',
+  'This order has already been paid': 'Đơn hàng này đã được thanh toán.',
+  'Order status changed and can no longer be cancelled': 'Trạng thái đơn hàng đã thay đổi nên không thể hủy.',
 };
 
 const normalizeErrorMessage = (error) => {
   if (error.code === 'ECONNABORTED') {
-    error.message = 'Ket noi toi may chu qua lau. Vui long thu lai.';
+    error.message = 'Kết nối tới máy chủ quá lâu. Vui lòng thử lại.';
   } else if (!error.response) {
-    error.message = 'Khong ket noi duoc toi API Gateway. Hay kiem tra backend dang chay.';
+    error.message = 'Không kết nối được tới API Gateway. Hãy kiểm tra backend đang chạy.';
   }
 
   const message = error.response?.data?.message;
 
   if (message && MESSAGE_MAP[message]) {
     error.response.data.message = MESSAGE_MAP[message];
+  } else if (message?.startsWith('Orders can only be cancelled within')) {
+    error.response.data.message = 'Đơn pending chỉ hủy trực tiếp trong 60 phút sau khi đặt.';
   }
 
   return error;
