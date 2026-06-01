@@ -1,4 +1,5 @@
 import api, { unwrapData } from './api.js';
+import { normalizeCategory, normalizeProduct } from './productService.js';
 
 const normalizePagination = (pagination = {}, params = {}) => {
   const pageSize = pagination.limit || params.limit || params.pageSize || 20;
@@ -21,6 +22,52 @@ const mapPageSize = (params = {}) => {
   delete requestParams.pageSize;
 
   return requestParams;
+};
+
+export const getCategories = async (params = {}) => {
+  const data = await api.get('/categories', { params: { include_inactive: true, ...params } }).then(unwrapData);
+  return (data.categories || []).map(normalizeCategory).filter(Boolean);
+};
+
+export const createCategory = async (payload) => {
+  const data = await api.post('/categories', payload).then(unwrapData);
+  return normalizeCategory(data.category);
+};
+
+export const updateCategory = async (id, payload) => {
+  const data = await api.put(`/categories/${id}`, payload).then(unwrapData);
+  return normalizeCategory(data.category);
+};
+
+export const getProducts = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  requestParams.include_specs = true;
+
+  if (requestParams.status !== 'active') {
+    requestParams.include_inactive = true;
+  }
+
+  const data = await api.get('/products', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.products || []).map(normalizeProduct).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const createProduct = async (payload) => {
+  const data = await api.post('/products', payload).then(unwrapData);
+  return normalizeProduct(data.product);
+};
+
+export const updateProduct = async (id, payload) => {
+  const data = await api.put(`/products/${id}`, payload).then(unwrapData);
+  return normalizeProduct(data.product);
+};
+
+export const deleteProduct = async (id) => {
+  const data = await api.delete(`/products/${id}`).then(unwrapData);
+  return normalizeProduct(data.product);
 };
 
 const normalizeCustomer = (customer) => {

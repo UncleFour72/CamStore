@@ -1,16 +1,28 @@
 import { ArrowRight, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
+import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import {
   assets,
-  homeCategories,
-  products,
+  storefrontCategories,
   testimonials,
-} from '../data/catalog.js';
+} from '../data/assets.js';
+import { fetchProducts } from '../store/slices/productSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
-const bestSellers = products.slice(0, 5);
-
 export default function HomePage() {
+  const dispatch = useDispatch();
+  const { products, isLoading } = useSelector((state) => state.product);
+
+  useEffect(() => {
+    dispatch(fetchProducts({ limit: 5, sort: 'popular' }));
+  }, [dispatch]);
+
+  const categoryTiles = storefrontCategories;
+
+  const bestSellers = products.slice(0, 5);
+
   return (
     <main className="home-page">
       <section className="home-hero">
@@ -41,22 +53,22 @@ export default function HomePage() {
         </div>
 
         <div className="featured-category-grid">
-          <Link className="category-tile category-tile-large category-tile-camera" to="/products?category=camera">
-            <img src={homeCategories[0].image} alt={homeCategories[0].title} />
-            <span>{homeCategories[0].title}</span>
-            <p>{homeCategories[0].subtitle}</p>
+          <Link className="category-tile category-tile-large category-tile-camera" to={`/products?category=${categoryTiles[0].id}`}>
+            <img src={categoryTiles[0].image} alt={categoryTiles[0].title} />
+            <span>{categoryTiles[0].title}</span>
+            <p>{categoryTiles[0].subtitle}</p>
           </Link>
-          <Link className="category-tile category-tile-tall category-tile-lens" to="/products?category=lens">
-            <img src={homeCategories[1].image} alt={homeCategories[1].title} />
-            <span>{homeCategories[1].title}</span>
-            <p>{homeCategories[1].subtitle}</p>
+          <Link className="category-tile category-tile-tall category-tile-lens" to={`/products?category=${categoryTiles[1].id}`}>
+            <img src={categoryTiles[1].image} alt={categoryTiles[1].title} />
+            <span>{categoryTiles[1].title}</span>
+            <p>{categoryTiles[1].subtitle}</p>
           </Link>
           <div className="category-tile-stack">
-            {homeCategories.slice(2).map((category) => (
+            {categoryTiles.slice(2).map((category) => (
               <Link
                 className={`category-tile category-tile-${category.id}`}
                 key={category.id}
-                to={category.id === 'accessory' ? '/products?category=accessory' : '/products'}
+                to={`/products?category=${category.id}`}
               >
                 <img src={category.image} alt={category.title} />
                 <span>{category.title}</span>
@@ -84,19 +96,28 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="home-best-grid">
-            {bestSellers.map((product) => (
-              <Link className="home-product-card" to={`/products/${product.id}`} key={product.id}>
-                <img src={product.image} alt={product.name} />
-                <span>{product.brand}</span>
-                <strong>{product.name}</strong>
-                <small>
-                  <Star size={12} fill="currentColor" /> {product.rating} ({product.reviews} đánh giá)
-                </small>
-                <b>{formatPrice(product.price)}</b>
-              </Link>
-            ))}
-          </div>
+          {isLoading && bestSellers.length === 0 ? (
+            <LoadingSpinner label="Đang tải sản phẩm" />
+          ) : bestSellers.length > 0 ? (
+            <div className="home-best-grid">
+              {bestSellers.map((product) => (
+                <Link className="home-product-card" to={`/products/${product.id}`} key={product.id}>
+                  <img src={product.image} alt={product.name} />
+                  <span>{product.brand}</span>
+                  <strong>{product.name}</strong>
+                  <small>
+                    <Star size={12} fill="currentColor" /> {product.rating.toFixed(1)} ({product.reviews} đánh giá)
+                  </small>
+                  <b>{formatPrice(product.price)}</b>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state inline">
+              <h2>Chưa có sản phẩm nổi bật</h2>
+              <p>Hãy thêm sản phẩm trong admin để hiển thị tại trang chủ.</p>
+            </div>
+          )}
         </div>
       </section>
 

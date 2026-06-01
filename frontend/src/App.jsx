@@ -13,6 +13,7 @@ import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import ProductListPage from './pages/ProductListPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
+import AdminCategories from './pages/admin/AdminCategories.jsx';
 import AdminCustomers from './pages/admin/AdminCustomers.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminOrders from './pages/admin/AdminOrders.jsx';
@@ -116,6 +117,7 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
+          <Route path="categories" element={<AdminCategories />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="customers" element={<AdminCustomers />} />
         </Route>

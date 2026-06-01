@@ -13,15 +13,16 @@ import {
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { storefrontCategories } from '../../data/assets.js';
 import { useCart } from '../../hooks/useCart.js';
 import { logoutUser } from '../../store/slices/authSlice.js';
 import { classNames } from '../../utils/helpers.js';
 
-const navItems = [
-  { label: 'May anh', to: '/products?category=camera', category: 'camera' },
-  { label: 'Ong kinh', to: '/products?category=lens', category: 'lens' },
-  { label: 'Phu kien', to: '/products?category=accessory', category: 'accessory' },
-];
+const navItems = storefrontCategories.map((category) => ({
+  label: category.label,
+  to: `/products?category=${category.id}`,
+  category: category.id,
+}));
 
 const serviceItems = [
   {

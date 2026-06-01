@@ -1,52 +1,18 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { categories, products } from '../../data/catalog.js';
+import * as productService from '../../services/productService.js';
 
-function paginate(items, params = {}) {
-  const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || 12;
-  const start = (page - 1) * pageSize;
-
-  return {
-    items: items.slice(start, start + pageSize),
-    page,
-    pageSize,
-    total: items.length,
-    totalPages: Math.ceil(items.length / pageSize),
-  };
-}
-
-function applyFilters(items, params = {}) {
-  const category = params.category || params.categoryId;
-  const search = params.search?.trim().toLowerCase();
-  const minPrice = Number(params.minPrice) || 0;
-  const maxPrice = Number(params.maxPrice) || Number.POSITIVE_INFINITY;
-
-  return items.filter((product) => {
-    const matchesCategory = !category || category === 'all' || product.category === category;
-    const matchesSearch =
-      !search ||
-      product.name.toLowerCase().includes(search) ||
-      product.tagline.toLowerCase().includes(search);
-    const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
-
-    return matchesCategory && matchesSearch && matchesPrice;
-  });
-}
+const getErrorMessage = (error, fallback) => {
+  return error.response?.data?.message || error.message || fallback;
+};
 
 const initialState = {
-  products,
+  products: [],
   currentProduct: null,
-  categories,
-  brands: [
-    { id: 'sony', name: 'Sony' },
-    { id: 'canon', name: 'Canon' },
-    { id: 'nikon', name: 'Nikon' },
-    { id: 'peak-design', name: 'Peak Design' },
-    { id: 'manfrotto', name: 'Manfrotto' },
-  ],
+  categories: [],
+  brands: [],
   isLoading: false,
   error: null,
-  pagination: { page: 1, pageSize: 12, total: products.length, totalPages: 1 },
+  pagination: { page: 1, pageSize: 12, total: 0, totalPages: 1 },
   filters: {},
 };
 
@@ -54,33 +20,51 @@ export const fetchProducts = createAsyncThunk(
   'product/fetchProducts',
   async (params = {}, { rejectWithValue }) => {
     try {
-      return paginate(applyFilters(products, params), params);
+      return await productService.getProducts(params);
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(getErrorMessage(error, 'Không thể tải sản phẩm'));
     }
   }
 );
 
 export const fetchProduct = createAsyncThunk(
   'product/fetchProduct',
-  async (id, { rejectWithValue }) => {
+  async (idOrSlug, { rejectWithValue }) => {
     try {
-      const product = products.find((item) => item.id === id);
-      if (!product) throw new Error('Khong tim thay san pham');
+      const product = await productService.getProduct(idOrSlug);
+
+      if (!product) {
+        throw new Error('Không tìm thấy sản phẩm');
+      }
+
       return product;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(getErrorMessage(error, 'Không thể tải sản phẩm'));
     }
   }
 );
 
-export const fetchCategories = createAsyncThunk('product/fetchCategories', async () => {
-  return categories;
-});
+export const fetchCategories = createAsyncThunk(
+  'product/fetchCategories',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      return await productService.getCategories(params);
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Không thể tải danh mục'));
+    }
+  }
+);
 
-export const fetchBrands = createAsyncThunk('product/fetchBrands', async () => {
-  return initialState.brands;
-});
+export const fetchBrands = createAsyncThunk(
+  'product/fetchBrands',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await productService.getBrands();
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Không thể tải thương hiệu'));
+    }
+  }
+);
 
 const productSlice = createSlice({
   name: 'product',
@@ -117,7 +101,7 @@ const productSlice = createSlice({
       })
       .addCase(fetchProducts.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Khong the tai san pham';
+        state.error = action.payload || 'Không thể tải sản phẩm';
       })
       .addCase(fetchProduct.pending, (state) => {
         state.isLoading = true;
@@ -129,17 +113,22 @@ const productSlice = createSlice({
       })
       .addCase(fetchProduct.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Khong the tai san pham';
+        state.error = action.payload || 'Không thể tải sản phẩm';
       })
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.categories = action.payload;
       })
+      .addCase(fetchCategories.rejected, (state, action) => {
+        state.error = action.payload || 'Không thể tải danh mục';
+      })
       .addCase(fetchBrands.fulfilled, (state, action) => {
         state.brands = action.payload;
+      })
+      .addCase(fetchBrands.rejected, (state, action) => {
+        state.error = action.payload || 'Không thể tải thương hiệu';
       });
   },
 });
 
-export const { setFilters, clearFilters, setPage, clearCurrentProduct } =
-  productSlice.actions;
+export const { setFilters, clearFilters, setPage, clearCurrentProduct } = productSlice.actions;
 export default productSlice.reducer;

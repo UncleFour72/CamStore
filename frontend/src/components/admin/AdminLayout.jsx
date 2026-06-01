@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   Search,
   ShoppingCart,
+  Tags,
   UsersRound,
 } from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
@@ -12,11 +13,13 @@ const adminNav = [
   { label: 'Tổng quan', to: '/admin', icon: LayoutGrid, end: true },
   { label: 'Đơn hàng', to: '/admin/orders', icon: ShoppingCart },
   { label: 'Sản phẩm', to: '/admin/products', icon: Aperture },
+  { label: 'Danh mục', to: '/admin/categories', icon: Tags },
   { label: 'Khách hàng', to: '/admin/customers', icon: UsersRound },
 ];
 
 const searchPlaceholders = {
   '/admin/products': 'Tìm kiếm sản phẩm...',
+  '/admin/categories': 'Tìm kiếm danh mục...',
   '/admin/orders': 'Tìm kiếm mã đơn, khách hàng...',
   '/admin/customers': 'Tìm kiếm hệ thống...',
 };
