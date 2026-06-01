@@ -1,11 +1,12 @@
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CartItem from '../components/common/CartItem.jsx';
+import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import { useCart } from '../hooks/useCart.js';
 import { formatPrice } from '../utils/helpers.js';
 
 export default function CartPage() {
-  const { items, itemCount, subtotal, total } = useCart();
+  const { items, itemCount, subtotal, total, isLoading, error } = useCart();
 
   return (
     <main className="page">
@@ -21,10 +22,20 @@ export default function CartPage() {
               <h2>Sản phẩm ({itemCount})</h2>
               <ShoppingBag size={24} />
             </div>
-            {items.length > 0 ? (
+            {isLoading && items.length === 0 ? (
+              <LoadingSpinner label="Đang tải giỏ hàng" />
+            ) : error ? (
+              <div className="empty-state inline">
+                <h2>Không thể tải giỏ hàng</h2>
+                <p>{error}</p>
+                <Link className="button secondary" to="/login">
+                  Đăng nhập lại
+                </Link>
+              </div>
+            ) : items.length > 0 ? (
               <div className="cart-lines">
                 {items.map((item) => (
-                  <CartItem key={item.product.id} item={item} />
+                  <CartItem key={item.id} item={item} />
                 ))}
               </div>
             ) : (

@@ -23,7 +23,8 @@ export default function CartItem({ item, compact = false }) {
           <button
             type="button"
             aria-label="Giảm số lượng"
-            onClick={() => updateQuantity(product.id, quantity - 1)}
+            disabled={quantity <= 1}
+            onClick={() => updateQuantity(item.id, quantity - 1)}
           >
             <Minus size={15} />
           </button>
@@ -31,7 +32,7 @@ export default function CartItem({ item, compact = false }) {
           <button
             type="button"
             aria-label="Tăng số lượng"
-            onClick={() => updateQuantity(product.id, quantity + 1)}
+            onClick={() => updateQuantity(item.id, quantity + 1)}
           >
             <Plus size={15} />
           </button>
@@ -43,7 +44,7 @@ export default function CartItem({ item, compact = false }) {
         type="button"
         className="icon-button danger"
         aria-label="Xóa sản phẩm"
-        onClick={() => removeItem(product.id)}
+        onClick={() => removeItem(item.id)}
       >
         <Trash2 size={20} />
       </button>

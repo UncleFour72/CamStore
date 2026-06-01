@@ -2,7 +2,7 @@ import { Camera, Eye, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { assets } from '../data/catalog.js';
+import { assets } from '../data/assets.js';
 import { clearError, registerUser } from '../store/slices/authSlice.js';
 
 export default function RegisterPage() {
@@ -44,44 +44,44 @@ export default function RegisterPage() {
           <span>CAMSTORE</span>
         </Link>
 
-        <img className="auth-visual-image" src={assets.lensDark} alt="Camera lens" />
+        <img className="auth-visual-image" src={assets.lensDark} alt="Ống kính máy ảnh" />
 
         <div className="auth-visual-copy">
-          <h1>Tao tai khoan de mua sam nhanh hon.</h1>
-          <p>Luu thong tin giao hang, theo doi don va nhan uu dai rieng cua CamStore.</p>
+          <h1>Tạo tài khoản để mua sắm nhanh hơn.</h1>
+          <p>Lưu thông tin giao hàng, theo dõi đơn và nhận ưu đãi riêng của CamStore.</p>
         </div>
 
-        <div className="auth-visual-links" aria-label="Danh muc thiet bi">
-          <span>Lenses</span>
-          <span>Bodies</span>
-          <span>Accessories</span>
-          <span>Studio Gear</span>
+        <div className="auth-visual-links" aria-label="Danh mục thiết bị">
+          <span>Ống kính</span>
+          <span>Thân máy</span>
+          <span>Phụ kiện</span>
+          <span>Thiết bị studio</span>
         </div>
       </section>
 
       <section className="auth-workspace">
         <div className="auth-panel-modern">
           <div className="auth-heading">
-            <h1>Tao tai khoan moi</h1>
-            <p>Dang ky tai khoan khach hang CamStore.</p>
+            <h1>Tạo tài khoản mới</h1>
+            <p>Đăng ký tài khoản khách hàng CamStore.</p>
           </div>
 
           <div className="auth-tabs">
-            <Link to="/login">Dang nhap</Link>
+            <Link to="/login">Đăng nhập</Link>
             <Link className="active" to="/register">
-              Dang ky
+              Đăng ký
             </Link>
           </div>
 
           <form className="auth-form-modern" onSubmit={handleSubmit}>
             <label>
-              <span>Ho va ten</span>
+              <span>Họ và tên</span>
               <input
                 type="text"
                 name="name"
                 value={form.name}
                 onChange={updateField}
-                placeholder="Nguyen Van A"
+                placeholder="Nguyễn Văn A"
                 autoComplete="name"
                 required
               />
@@ -101,7 +101,7 @@ export default function RegisterPage() {
             </label>
 
             <label>
-              <span>So dien thoai</span>
+              <span>Số điện thoại</span>
               <input
                 type="tel"
                 name="phone"
@@ -113,7 +113,7 @@ export default function RegisterPage() {
             </label>
 
             <label>
-              <span>Mat khau</span>
+              <span>Mật khẩu</span>
               <div className="auth-password-field">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -127,7 +127,7 @@ export default function RegisterPage() {
                 />
                 <button
                   type="button"
-                  aria-label="Hien mat khau"
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   onClick={() => setShowPassword((value) => !value)}
                 >
                   <Eye size={20} />
@@ -139,11 +139,11 @@ export default function RegisterPage() {
 
             <label className="auth-remember">
               <input type="checkbox" />
-              <span>Toi dong y nhan thong tin uu dai tu CamStore</span>
+              <span>Tôi đồng ý nhận thông tin ưu đãi từ CamStore</span>
             </label>
 
             <button className="auth-submit" type="submit" disabled={isLoading}>
-              {isLoading ? 'Dang dang ky...' : 'Dang ky tai khoan'}
+              {isLoading ? 'Đang đăng ký...' : 'Đăng ký tài khoản'}
             </button>
           </form>
 

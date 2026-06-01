@@ -53,22 +53,22 @@ export default function ProductDetailPage() {
     }
 
     if (stockQuantity <= 0) {
-      setCartMessage('San pham dang tam het hang.');
+      setCartMessage('Sản phẩm đang tạm hết hàng.');
       return;
     }
 
     try {
-      await addItem(product.id, 1).unwrap();
+      await addItem(product.productId || product.apiId, 1).unwrap();
 
       if (goToCheckout) {
         navigate('/checkout');
         return;
       }
 
-      setCartMessage('Da them san pham vao gio hang.');
+      setCartMessage('Đã thêm sản phẩm vào giỏ hàng.');
     } catch (err) {
       setCartMessage(
-        typeof err === 'string' ? err : err?.message || 'Chua the them vao gio hang. Cart service se duoc noi o commit sau.'
+        typeof err === 'string' ? err : err?.message || 'Chưa thể thêm sản phẩm vào giỏ hàng.'
       );
     }
   }
@@ -77,7 +77,7 @@ export default function ProductDetailPage() {
     return (
       <main className="pdp-page">
         <section className="container">
-          <LoadingSpinner label="Dang tai san pham" />
+          <LoadingSpinner label="Đang tải sản phẩm" />
         </section>
       </main>
     );
@@ -88,10 +88,10 @@ export default function ProductDetailPage() {
       <main className="pdp-page">
         <section className="container">
           <div className="empty-state">
-            <h1>Khong the tai san pham</h1>
+            <h1>Không thể tải sản phẩm</h1>
             <p>{error}</p>
             <Link className="button secondary" to="/products">
-              Quay lai cua hang
+              Quay lại cửa hàng
             </Link>
           </div>
         </section>
@@ -114,9 +114,9 @@ export default function ProductDetailPage() {
       <ToastNotification message={cartMessage} onClose={() => setCartMessage('')} />
       <section className="container pdp-top">
         <div className="pdp-breadcrumb">
-          <Link to="/">Trang chu</Link>
+          <Link to="/">Trang chủ</Link>
           <ChevronRight size={14} />
-          <Link to={`/products?category=${product.category}`}>{product.categoryName || 'San pham'}</Link>
+          <Link to={`/products?category=${product.category}`}>{product.categoryName || 'Sản phẩm'}</Link>
           <ChevronRight size={14} />
           <span>{product.detailName || product.name}</span>
         </div>
@@ -157,7 +157,7 @@ export default function ProductDetailPage() {
             <p className="pdp-description">{product.description || product.tagline}</p>
 
             <div className="pdp-combos">
-              <span>Lua chon combo</span>
+          <span>Lựa chọn combo</span>
               <label className={combo === 'body' ? 'active' : ''}>
                 <input
                   type="radio"
@@ -165,7 +165,7 @@ export default function ProductDetailPage() {
                   checked={combo === 'body'}
                   onChange={() => setCombo('body')}
                 />
-                <p>Chi than may (Body Only)</p>
+                <p>Chỉ thân máy (Body Only)</p>
                 <strong>{formatPrice(basePrice)}</strong>
               </label>
               <label className={combo === 'kit' ? 'active' : ''}>
@@ -187,7 +187,7 @@ export default function ProductDetailPage() {
                 onClick={() => handleAddToCart()}
                 disabled={stockQuantity <= 0}
               >
-                <ShoppingCart size={20} /> {stockQuantity > 0 ? 'Them vao gio hang' : 'Tam het hang'}
+                <ShoppingCart size={20} /> {stockQuantity > 0 ? 'Thêm vào giỏ hàng' : 'Tạm hết hàng'}
               </button>
               <button
                 className="button primary full"
@@ -208,20 +208,20 @@ export default function ProductDetailPage() {
       </section>
 
       <section className="container pdp-tabs">
-        <a className="active" href="#description">Mo ta chi tiet</a>
-        <a href="#specs">Thong so ky thuat</a>
-        <a href="#accessories">San pham lien quan</a>
+        <a className="active" href="#description">Mô tả chi tiết</a>
+        <a href="#specs">Thông số kỹ thuật</a>
+        <a href="#accessories">Sản phẩm liên quan</a>
       </section>
 
       <section className="container pdp-detail-block" id="description">
         <div>
-          <h2>{product.short_description || `Chi tiet ${product.name}`}</h2>
-          <p>{product.description || product.tagline || 'Thong tin san pham dang duoc cap nhat.'}</p>
+          <h2>{product.short_description || `Chi tiết ${product.name}`}</h2>
+          <p>{product.description || product.tagline || 'Thông tin sản phẩm đang được cập nhật.'}</p>
           <img src={gallery[1] || product.image || assets.sensor} alt={product.name} />
         </div>
 
         <div id="specs">
-          <h2>Thong so ky thuat chi tiet</h2>
+          <h2>Thông số kỹ thuật chi tiết</h2>
           {specs.length > 0 ? (
             <div className="pdp-spec-table">
               {specs.map(([label, value]) => (
@@ -233,8 +233,8 @@ export default function ProductDetailPage() {
             </div>
           ) : (
             <div className="empty-state inline">
-              <h2>Chua co thong so ky thuat</h2>
-              <p>CamStore se cap nhat bang thong so cho san pham nay som.</p>
+              <h2>Chưa có thông số kỹ thuật</h2>
+              <p>CamStore sẽ cập nhật bảng thông số cho sản phẩm này sớm.</p>
             </div>
           )}
         </div>
@@ -243,10 +243,10 @@ export default function ProductDetailPage() {
       <section className="container pdp-related" id="accessories">
         <div className="pdp-related-head">
           <div>
-            <h2>San pham lien quan</h2>
-            <p>Co the ban se quan tam den nhung lua chon nay</p>
+            <h2>Sản phẩm liên quan</h2>
+            <p>Có thể bạn sẽ quan tâm đến những lựa chọn này</p>
           </div>
-          <Link to="/products">Xem tat ca</Link>
+          <Link to="/products">Xem tất cả</Link>
         </div>
         {relatedProducts.length > 0 ? (
           <div className="pdp-related-grid">
@@ -257,15 +257,15 @@ export default function ProductDetailPage() {
                 <div>
                   <strong>{item.fullName || item.name}</strong>
                   <b>{formatPrice(item.price)}</b>
-                  <small>Xem chi tiet</small>
+                  <small>Xem chi tiết</small>
                 </div>
               </Link>
             ))}
           </div>
         ) : (
           <div className="empty-state inline">
-            <h2>Chua co san pham lien quan</h2>
-            <p>Hay quay lai cua hang de kham pha them thiet bi khac.</p>
+            <h2>Chưa có sản phẩm liên quan</h2>
+            <p>Hãy quay lại cửa hàng để khám phá thêm thiết bị khác.</p>
           </div>
         )}
       </section>

@@ -5,6 +5,7 @@ import { formatPrice, getCategoryLabel } from '../../utils/helpers.js';
 
 export default function ProductCard({ product }) {
   const { addItem } = useCart();
+  const productApiId = product.productId || product.apiId || product.id;
 
   return (
     <article className="product-card">
@@ -37,7 +38,7 @@ export default function ProductCard({ product }) {
               type="button"
               className="icon-button primary"
               aria-label="Thêm vào giỏ"
-              onClick={() => addItem(product.id)}
+              onClick={() => addItem(productApiId)}
             >
               <ShoppingCart size={19} />
             </button>

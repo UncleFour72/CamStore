@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   addToCart,
   clearCart as clearReduxCart,
+  fetchCart,
   removeFromCart,
   updateCartItem,
 } from '../store/slices/cartSlice.js';
@@ -9,7 +11,14 @@ import {
 export function useCart() {
   const dispatch = useDispatch();
   const cart = useSelector((state) => state.cart);
-  const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  const itemCount = cart.totalItems || cart.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    if (isAuthenticated && !cart.hasLoaded && !cart.isLoading) {
+      dispatch(fetchCart());
+    }
+  }, [cart.hasLoaded, cart.isLoading, dispatch, isAuthenticated]);
 
   return {
     items: cart.items,
@@ -19,9 +28,11 @@ export function useCart() {
     total: cart.total,
     isLoading: cart.isLoading,
     error: cart.error,
+    fetchCart: () => dispatch(fetchCart()),
     addItem: (productId, quantity = 1) => dispatch(addToCart({ productId, quantity })),
-    updateQuantity: (productId, quantity) => dispatch(updateCartItem({ itemId: productId, quantity })),
-    removeItem: (productId) => dispatch(removeFromCart(productId)),
+    updateQuantity: (itemId, quantity) =>
+      dispatch(updateCartItem({ itemId, quantity: Math.max(Number(quantity) || 1, 1) })),
+    removeItem: (itemId) => dispatch(removeFromCart(itemId)),
     clearCart: () => dispatch(clearReduxCart()),
   };
 }

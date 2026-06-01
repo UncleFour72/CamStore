@@ -1,88 +1,43 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { products } from '../../data/catalog.js';
+import * as cartService from '../../services/cartService.js';
+import { logoutUser } from './authSlice.js';
 
-const CART_KEY = 'camstore_redux_cart';
-
-function readCart() {
-  try {
-    const stored = localStorage.getItem(CART_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch {
-    // Fall through to default cart.
-  }
-
-  return [];
-}
-
-function saveCart(items) {
-  localStorage.setItem(CART_KEY, JSON.stringify(items));
-  return items;
-}
-
-function hydrateItems(items) {
-  return items
-    .map((item) => {
-      const product = products.find((candidate) => candidate.id === item.productId);
-      if (!product) return null;
-
-      return {
-        ...item,
-        id: item.id || item.productId,
-        product,
-        price: product.price,
-        quantity: Math.max(Number(item.quantity) || 1, 1),
-      };
-    })
-    .filter(Boolean);
-}
-
-function calculateTotals(items) {
-  const hydratedItems = hydrateItems(items);
-  const subtotal = hydratedItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  return {
-    items: hydratedItems,
-    subtotal,
-    total: subtotal,
-  };
-}
-
-const initialState = {
-  ...calculateTotals(readCart()),
-  isLoading: false,
-  error: null,
+const getErrorMessage = (error, fallback) => {
+  return error.response?.data?.message || error.message || fallback;
 };
 
-export const fetchCart = createAsyncThunk('cart/fetchCart', async () => {
-  return calculateTotals(readCart());
-});
+const emptyCartState = {
+  items: [],
+  subtotal: 0,
+  total: 0,
+  totalItems: 0,
+};
+
+const initialState = {
+  ...emptyCartState,
+  isLoading: false,
+  error: null,
+  hasLoaded: false,
+};
+
+export const fetchCart = createAsyncThunk(
+  'cart/fetchCart',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await cartService.getCart();
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Không thể tải giỏ hàng'));
+    }
+  }
+);
 
 export const addToCart = createAsyncThunk(
   'cart/addToCart',
   async ({ productId, quantity = 1 }, { rejectWithValue }) => {
     try {
-      const product = products.find((item) => item.id === productId);
-      if (!product) throw new Error('San pham khong ton tai');
-
-      const items = readCart();
-      const existing = items.find((item) => item.productId === productId);
-
-      const nextItems = existing
-        ? items.map((item) =>
-            item.productId === productId
-              ? { ...item, quantity: item.quantity + quantity }
-              : item
-          )
-        : [...items, { id: productId, productId, quantity }];
-
-      return calculateTotals(saveCart(nextItems));
+      return await cartService.addToCart({ productId, quantity });
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(getErrorMessage(error, 'Không thể thêm vào giỏ hàng'));
     }
   }
 );
@@ -91,15 +46,9 @@ export const updateCartItem = createAsyncThunk(
   'cart/updateCartItem',
   async ({ itemId, quantity }, { rejectWithValue }) => {
     try {
-      const items = readCart().map((item) =>
-        item.id === itemId || item.productId === itemId
-          ? { ...item, quantity: Math.max(Number(quantity) || 1, 1) }
-          : item
-      );
-
-      return calculateTotals(saveCart(items));
+      return await cartService.updateCartItem(itemId, quantity);
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(getErrorMessage(error, 'Không thể cập nhật giỏ hàng'));
     }
   }
 );
@@ -108,20 +57,23 @@ export const removeFromCart = createAsyncThunk(
   'cart/removeFromCart',
   async (itemId, { rejectWithValue }) => {
     try {
-      const items = readCart().filter(
-        (item) => item.id !== itemId && item.productId !== itemId
-      );
-
-      return calculateTotals(saveCart(items));
+      return await cartService.removeCartItem(itemId);
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(getErrorMessage(error, 'Không thể xóa sản phẩm khỏi giỏ'));
     }
   }
 );
 
-export const clearCart = createAsyncThunk('cart/clearCart', async () => {
-  return calculateTotals(saveCart([]));
-});
+export const clearCart = createAsyncThunk(
+  'cart/clearCart',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await cartService.clearCart();
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Không thể xóa giỏ hàng'));
+    }
+  }
+);
 
 const cartSlice = createSlice({
   name: 'cart',
@@ -132,27 +84,41 @@ const cartSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    const markPending = (state) => {
+      state.isLoading = true;
+      state.error = null;
+    };
+    const markRejected = (fallback) => (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload || fallback;
+    };
     const applyCartPayload = (state, action) => {
       state.isLoading = false;
+      state.error = null;
+      state.hasLoaded = true;
       state.items = action.payload.items;
       state.subtotal = action.payload.subtotal;
       state.total = action.payload.total;
+      state.totalItems = action.payload.totalItems;
     };
 
     builder
-      .addCase(fetchCart.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
+      .addCase(fetchCart.pending, markPending)
       .addCase(fetchCart.fulfilled, applyCartPayload)
-      .addCase(fetchCart.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Khong the tai gio hang';
-      })
+      .addCase(fetchCart.rejected, markRejected('Không thể tải giỏ hàng'))
+      .addCase(addToCart.pending, markPending)
       .addCase(addToCart.fulfilled, applyCartPayload)
+      .addCase(addToCart.rejected, markRejected('Không thể thêm vào giỏ hàng'))
+      .addCase(updateCartItem.pending, markPending)
       .addCase(updateCartItem.fulfilled, applyCartPayload)
+      .addCase(updateCartItem.rejected, markRejected('Không thể cập nhật giỏ hàng'))
+      .addCase(removeFromCart.pending, markPending)
       .addCase(removeFromCart.fulfilled, applyCartPayload)
-      .addCase(clearCart.fulfilled, applyCartPayload);
+      .addCase(removeFromCart.rejected, markRejected('Không thể xóa sản phẩm khỏi giỏ'))
+      .addCase(clearCart.pending, markPending)
+      .addCase(clearCart.fulfilled, applyCartPayload)
+      .addCase(clearCart.rejected, markRejected('Không thể xóa giỏ hàng'))
+      .addCase(logoutUser.fulfilled, () => initialState);
   },
 });
 

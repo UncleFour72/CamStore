@@ -2,7 +2,7 @@ import { Camera, Eye, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { assets } from '../data/catalog.js';
+import { assets } from '../data/assets.js';
 import { clearError, loginUser } from '../store/slices/authSlice.js';
 
 export default function LoginPage() {
@@ -42,33 +42,33 @@ export default function LoginPage() {
           <span>CAMSTORE</span>
         </Link>
 
-        <img className="auth-visual-image" src={assets.lensDark} alt="Camera lens" />
+        <img className="auth-visual-image" src={assets.lensDark} alt="Ống kính máy ảnh" />
 
         <div className="auth-visual-copy">
-          <h1>Ghi lai khoanh khac, kien tao nghe thuat.</h1>
-          <p>Dang nhap de quan ly ho so, dia chi giao hang va lich su mua sam tai CamStore.</p>
+          <h1>Ghi lại khoảnh khắc, kiến tạo nghệ thuật.</h1>
+          <p>Đăng nhập để quản lý hồ sơ, địa chỉ giao hàng và lịch sử mua sắm tại CamStore.</p>
         </div>
 
-        <div className="auth-visual-links" aria-label="Danh muc thiet bi">
-          <span>Lenses</span>
-          <span>Bodies</span>
-          <span>Accessories</span>
-          <span>Studio Gear</span>
+        <div className="auth-visual-links" aria-label="Danh mục thiết bị">
+          <span>Ống kính</span>
+          <span>Thân máy</span>
+          <span>Phụ kiện</span>
+          <span>Thiết bị studio</span>
         </div>
       </section>
 
       <section className="auth-workspace">
         <div className="auth-panel-modern">
           <div className="auth-heading">
-            <h1>Chao mung tro lai</h1>
-            <p>Nhap email va mat khau de truy cap tai khoan cua ban.</p>
+            <h1>Chào mừng trở lại</h1>
+            <p>Nhập email và mật khẩu để truy cập tài khoản của bạn.</p>
           </div>
 
           <div className="auth-tabs">
             <Link className="active" to="/login">
-              Dang nhap
+              Đăng nhập
             </Link>
-            <Link to="/register">Dang ky</Link>
+            <Link to="/register">Đăng ký</Link>
           </div>
 
           <form className="auth-form-modern" onSubmit={handleSubmit}>
@@ -86,7 +86,7 @@ export default function LoginPage() {
             </label>
 
             <label>
-              <span>Mat khau</span>
+              <span>Mật khẩu</span>
               <div className="auth-password-field">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -99,7 +99,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  aria-label="Hien mat khau"
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   onClick={() => setShowPassword((value) => !value)}
                 >
                   <Eye size={20} />
@@ -111,11 +111,11 @@ export default function LoginPage() {
 
             <label className="auth-remember">
               <input type="checkbox" />
-              <span>Duy tri dang nhap tren thiet bi nay</span>
+              <span>Duy trì đăng nhập trên thiết bị này</span>
             </label>
 
             <button className="auth-submit" type="submit" disabled={isLoading}>
-              {isLoading ? 'Dang dang nhap...' : 'Dang nhap tai khoan'}
+              {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập tài khoản'}
             </button>
           </form>
 
