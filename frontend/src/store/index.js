@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import addressReducer from './slices/addressSlice.js';
 import authReducer from './slices/authSlice.js';
+import blogReducer from './slices/blogSlice.js';
 import cartReducer from './slices/cartSlice.js';
 import orderReducer from './slices/orderSlice.js';
 import productReducer from './slices/productSlice.js';
@@ -11,6 +12,7 @@ export const store = configureStore({
   reducer: {
     address: addressReducer,
     auth: authReducer,
+    blog: blogReducer,
     cart: cartReducer,
     order: orderReducer,
     product: productReducer,

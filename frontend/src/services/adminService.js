@@ -1,4 +1,5 @@
 import api, { unwrapData } from './api.js';
+import { normalizePost } from './blogService.js';
 import { normalizeOrder } from './orderService.js';
 import { normalizeCategory, normalizeProduct } from './productService.js';
 import { normalizeReview } from './reviewService.js';
@@ -143,6 +144,41 @@ export const getAdminReviews = async (params = {}) => {
 export const setReviewActive = async (id, isActive) => {
   const data = await api.patch(`/reviews/${id}/status`, { is_active: isActive }).then(unwrapData);
   return normalizeReview(data.review);
+};
+
+export const getAdminBlogs = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/blogs/admin', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.posts || []).map(normalizePost).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const createBlog = async (payload) => {
+  const data = await api.post('/blogs', payload).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const updateBlog = async (id, payload) => {
+  const data = await api.put(`/blogs/${id}`, payload).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const deleteBlog = async (id) => {
+  await api.delete(`/blogs/${id}`);
+  return true;
+};
+
+export const toggleBlogPublish = async (id, isPublished) => {
+  const data = await api.patch(`/blogs/${id}/publish`, { is_published: isPublished }).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const toggleBlogFeatured = async (id, isFeatured) => {
+  const data = await api.patch(`/blogs/${id}/featured`, { is_featured: isFeatured }).then(unwrapData);
+  return normalizePost(data.post);
 };
 
 const normalizeCustomer = (customer) => {

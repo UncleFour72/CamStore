@@ -4,6 +4,7 @@ import AdminLayout from './components/admin/AdminLayout.jsx';
 import Footer from './components/layout/Footer.jsx';
 import Header from './components/layout/Header.jsx';
 import BlogPage from './pages/BlogPage.jsx';
+import BlogDetailPage from './pages/BlogDetailPage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import HomePage from './pages/HomePage.jsx';
@@ -15,6 +16,7 @@ import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import ProductListPage from './pages/ProductListPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
+import AdminBlog from './pages/admin/AdminBlog.jsx';
 import AdminCategories from './pages/admin/AdminCategories.jsx';
 import AdminCustomers from './pages/admin/AdminCustomers.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
@@ -79,6 +81,7 @@ export default function App() {
           <Route path="products" element={<ProductListPage />} />
           <Route path="products/:productId" element={<ProductDetailPage />} />
           <Route path="blog" element={<BlogPage />} />
+          <Route path="blog/:slug" element={<BlogDetailPage />} />
           <Route path="services/warranty" element={<WarrantyServicePage />} />
           <Route path="services/trade-in" element={<TradeInServicePage />} />
           <Route path="services/cleaning" element={<CleaningServicePage />} />
@@ -127,6 +130,7 @@ export default function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="payments" element={<AdminPayments />} />
           <Route path="reviews" element={<AdminReviews />} />
+          <Route path="blog" element={<AdminBlog />} />
           <Route path="customers" element={<AdminCustomers />} />
         </Route>
 

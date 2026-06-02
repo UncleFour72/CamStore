@@ -41,6 +41,16 @@ const MESSAGE_MAP = {
   'Only delivered orders can be reviewed': 'Chỉ đơn hàng đã giao thành công mới có thể đánh giá.',
   'rating must be between 1 and 5': 'Số sao phải nằm trong khoảng từ 1 đến 5.',
   'product_id, order_id and rating between 1 and 5 are required': 'Vui lòng chọn sản phẩm, đơn hàng và số sao hợp lệ.',
+  'Blog post not found': 'Không tìm thấy bài viết.',
+  'title is required': 'Vui lòng nhập tiêu đề bài viết.',
+  'content is required': 'Vui lòng nhập nội dung bài viết.',
+  'category is required': 'Vui lòng nhập danh mục bài viết.',
+  'author_id is required': 'Không xác định được tác giả bài viết.',
+  'slug could not be generated': 'Không thể tạo đường dẫn cho bài viết.',
+  'is_published boolean is required': 'Trạng thái xuất bản không hợp lệ.',
+  'is_featured boolean is required': 'Trạng thái bài nổi bật không hợp lệ.',
+  'A valid email is required': 'Vui lòng nhập email hợp lệ.',
+  'Newsletter subscriber not found': 'Không tìm thấy người đăng ký nhận tin.',
 };
 
 const normalizeErrorMessage = (error) => {

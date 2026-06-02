@@ -2,6 +2,7 @@ import {
   Aperture,
   Bell,
   CreditCard,
+  FileText,
   LayoutGrid,
   Search,
   ShoppingCart,
@@ -18,6 +19,7 @@ const adminNav = [
   { label: 'Sản phẩm', to: '/admin/products', icon: Aperture },
   { label: 'Danh mục', to: '/admin/categories', icon: Tags },
   { label: 'Đánh giá', to: '/admin/reviews', icon: Star },
+  { label: 'Tin tức', to: '/admin/blog', icon: FileText },
   { label: 'Khách hàng', to: '/admin/customers', icon: UsersRound },
 ];
 
@@ -27,6 +29,7 @@ const searchPlaceholders = {
   '/admin/orders': 'Tìm kiếm mã đơn, khách hàng...',
   '/admin/payments': 'Tìm kiếm thanh toán...',
   '/admin/reviews': 'Tìm kiếm đánh giá...',
+  '/admin/blog': 'Tìm kiếm bài viết...',
   '/admin/customers': 'Tìm kiếm hệ thống...',
 };
 
