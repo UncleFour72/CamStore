@@ -35,6 +35,12 @@ const MESSAGE_MAP = {
   'Payment is already completed or refunded': 'Giao dịch đã hoàn tất hoặc đã hoàn tiền.',
   'Mock payment is not enabled for this payment method': 'Phương thức này chưa bật giả lập thanh toán.',
   'Refund not found': 'Không tìm thấy yêu cầu hoàn tiền.',
+  'Review not found': 'Không tìm thấy đánh giá.',
+  'You cannot update this review': 'Bạn không có quyền cập nhật đánh giá này.',
+  'You cannot delete this review': 'Bạn không có quyền xóa đánh giá này.',
+  'Only delivered orders can be reviewed': 'Chỉ đơn hàng đã giao thành công mới có thể đánh giá.',
+  'rating must be between 1 and 5': 'Số sao phải nằm trong khoảng từ 1 đến 5.',
+  'product_id, order_id and rating between 1 and 5 are required': 'Vui lòng chọn sản phẩm, đơn hàng và số sao hợp lệ.',
 };
 
 const normalizeErrorMessage = (error) => {

@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   Search,
   ShoppingCart,
+  Star,
   Tags,
   UsersRound,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ const adminNav = [
   { label: 'Thanh toán', to: '/admin/payments', icon: CreditCard },
   { label: 'Sản phẩm', to: '/admin/products', icon: Aperture },
   { label: 'Danh mục', to: '/admin/categories', icon: Tags },
+  { label: 'Đánh giá', to: '/admin/reviews', icon: Star },
   { label: 'Khách hàng', to: '/admin/customers', icon: UsersRound },
 ];
 
@@ -24,6 +26,7 @@ const searchPlaceholders = {
   '/admin/categories': 'Tìm kiếm danh mục...',
   '/admin/orders': 'Tìm kiếm mã đơn, khách hàng...',
   '/admin/payments': 'Tìm kiếm thanh toán...',
+  '/admin/reviews': 'Tìm kiếm đánh giá...',
   '/admin/customers': 'Tìm kiếm hệ thống...',
 };
 

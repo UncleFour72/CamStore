@@ -1,6 +1,7 @@
 import api, { unwrapData } from './api.js';
 import { normalizeOrder } from './orderService.js';
 import { normalizeCategory, normalizeProduct } from './productService.js';
+import { normalizeReview } from './reviewService.js';
 
 const normalizePagination = (pagination = {}, params = {}) => {
   const pageSize = pagination.limit || params.limit || params.pageSize || 20;
@@ -127,6 +128,21 @@ export const createRefund = async (paymentId, payload) => {
 export const updateRefundStatus = async (paymentId, refundId, status) => {
   const data = await api.patch(`/payments/${paymentId}/refunds/${refundId}`, { status }).then(unwrapData);
   return data.refund;
+};
+
+export const getAdminReviews = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/reviews/admin', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.reviews || []).map(normalizeReview).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const setReviewActive = async (id, isActive) => {
+  const data = await api.patch(`/reviews/${id}/status`, { is_active: isActive }).then(unwrapData);
+  return normalizeReview(data.review);
 };
 
 const normalizeCustomer = (customer) => {

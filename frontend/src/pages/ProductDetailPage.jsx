@@ -12,7 +12,9 @@ import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import ToastNotification from '../components/common/ToastNotification.jsx';
 import { assets } from '../data/assets.js';
 import { useCart } from '../hooks/useCart.js';
+import { fetchOrders } from '../store/slices/orderSlice.js';
 import { clearCurrentProduct, fetchProduct, fetchProducts } from '../store/slices/productSlice.js';
+import { clearReviewError, createReview, fetchProductReviews } from '../store/slices/reviewSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
 export default function ProductDetailPage() {
@@ -21,8 +23,13 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { currentProduct: product, products, isLoading, error } = useSelector((state) => state.product);
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { orders: deliveredOrders } = useSelector((state) => state.order);
+  const { reviews, isLoading: reviewsLoading, error: reviewError } = useSelector((state) => state.review);
   const [selectedImage, setSelectedImage] = useState('');
   const [combo, setCombo] = useState('body');
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [reviewMessage, setReviewMessage] = useState('');
   const [cartMessage, setCartMessage] = useState('');
 
   useEffect(() => {
@@ -41,11 +48,59 @@ export default function ProductDetailPage() {
     setSelectedImage(product.gallery?.[0] || product.image);
     setCombo('body');
     dispatch(fetchProducts({ category: product.category, limit: 4, sort: 'popular' }));
-  }, [dispatch, product]);
+    dispatch(fetchProductReviews({ productId: product.productId || product.apiId, page: 1, pageSize: 5 }));
+
+    if (isAuthenticated) {
+      dispatch(fetchOrders({ status: 'delivered', limit: 100 }));
+    }
+  }, [dispatch, isAuthenticated, product]);
 
   const relatedProducts = useMemo(() => {
     return products.filter((item) => item.id !== product?.id).slice(0, 4);
   }, [product?.id, products]);
+  const eligibleOrder = useMemo(() => {
+    const productApiId = Number(product?.productId || product?.apiId);
+
+    if (!productApiId) {
+      return null;
+    }
+
+    return deliveredOrders.find((order) =>
+      order.status === 'delivered' && order.items.some((item) => Number(item.productId) === productApiId)
+    );
+  }, [deliveredOrders, product?.apiId, product?.productId]);
+
+  function updateReviewForm(event) {
+    dispatch(clearReviewError());
+    setReviewMessage('');
+    setReviewForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
+  }
+
+  async function handleReviewSubmit(event) {
+    event.preventDefault();
+
+    if (!eligibleOrder || !product) {
+      return;
+    }
+
+    try {
+      await dispatch(
+        createReview({
+          productId: product.productId || product.apiId,
+          orderId: eligibleOrder.orderId,
+          rating: Number(reviewForm.rating),
+          comment: reviewForm.comment,
+        })
+      ).unwrap();
+      setReviewForm({ rating: 5, comment: '' });
+      setReviewMessage('Đánh giá của bạn đã được gửi.');
+    } catch {
+      // Redux state already carries the visible error.
+    }
+  }
 
   async function handleAddToCart({ goToCheckout = false } = {}) {
     if (!product) {
@@ -150,7 +205,7 @@ export default function ProductDetailPage() {
                 ))}
               </span>
               <p>
-                {Number(product.rating || 0).toFixed(1)} ({product.reviews || 0} danh gia)
+                {Number(product.rating || 0).toFixed(1)} ({product.reviews || 0} đánh giá)
               </p>
             </div>
             <strong className="pdp-price">{formatPrice(basePrice)}</strong>
@@ -200,8 +255,8 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="pdp-assurance">
-              <span><CheckCircle2 size={18} /> Bao hanh 24 thang chinh hang</span>
-              <span><Truck size={18} /> Giao hang mien phi toan quoc</span>
+              <span><CheckCircle2 size={18} /> Bảo hành 24 tháng chính hãng</span>
+              <span><Truck size={18} /> Giao hàng miễn phí toàn quốc</span>
             </div>
           </div>
         </div>
@@ -210,6 +265,7 @@ export default function ProductDetailPage() {
       <section className="container pdp-tabs">
         <a className="active" href="#description">Mô tả chi tiết</a>
         <a href="#specs">Thông số kỹ thuật</a>
+        <a href="#reviews">Đánh giá khách hàng</a>
         <a href="#accessories">Sản phẩm liên quan</a>
       </section>
 
@@ -238,6 +294,90 @@ export default function ProductDetailPage() {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="container pdp-reviews" id="reviews">
+        <div className="pdp-related-head">
+          <div>
+            <h2>Đánh giá khách hàng</h2>
+            <p>Phản hồi thật từ các đơn hàng đã giao</p>
+          </div>
+        </div>
+
+        {reviewsLoading && reviews.length === 0 ? (
+          <LoadingSpinner label="Đang tải đánh giá" />
+        ) : reviews.length > 0 ? (
+          <div className="review-list">
+            {reviews.map((review) => (
+              <article className="review-card" key={review.id}>
+                <div className="review-card-head">
+                  <div>
+                    <strong>{review.userName}</strong>
+                    <small>{review.createdAt}</small>
+                  </div>
+                  <span className="review-stars">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star key={index} size={16} fill={index < review.rating ? 'currentColor' : 'none'} />
+                    ))}
+                  </span>
+                </div>
+                <p>{review.comment || 'Khách hàng chưa để lại nội dung đánh giá.'}</p>
+                {review.images.length > 0 && (
+                  <div className="review-images">
+                    {review.images.map((image) => (
+                      <img key={image} src={image} alt="Ảnh đánh giá sản phẩm" />
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state inline">
+            <h2>Chưa có đánh giá</h2>
+            <p>Hãy là người đầu tiên chia sẻ trải nghiệm sau khi đơn hàng được giao.</p>
+          </div>
+        )}
+
+        {reviewMessage && <p className="form-success">{reviewMessage}</p>}
+        {reviewError && <p className="form-error">{reviewError}</p>}
+
+        {isAuthenticated && eligibleOrder ? (
+          <form className="review-form" onSubmit={handleReviewSubmit}>
+            <div className="form-grid">
+              <label>
+                <span>Số sao</span>
+                <select name="rating" value={reviewForm.rating} onChange={updateReviewForm}>
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <option key={rating} value={rating}>
+                      {rating} sao
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="span-2">
+                <span>Nội dung đánh giá</span>
+                <textarea
+                  name="comment"
+                  value={reviewForm.comment}
+                  onChange={updateReviewForm}
+                  placeholder="Chia sẻ trải nghiệm thực tế của bạn..."
+                  rows={4}
+                  required
+                />
+              </label>
+            </div>
+            <button className="button primary" type="submit" disabled={reviewsLoading}>
+              {reviewsLoading ? 'Đang gửi...' : 'Gửi đánh giá'}
+            </button>
+          </form>
+        ) : (
+          <p className="field-note">
+            {isAuthenticated
+              ? 'Chỉ khách đã nhận hàng thành công mới có thể viết đánh giá cho sản phẩm này.'
+              : 'Đăng nhập sau khi mua hàng để viết đánh giá sản phẩm.'}
+          </p>
+        )}
       </section>
 
       <section className="container pdp-related" id="accessories">
