@@ -30,6 +30,11 @@ const MESSAGE_MAP = {
   'Only online orders can use online payment retry': 'Chỉ đơn online mới có thể thanh toán lại.',
   'This order has already been paid': 'Đơn hàng này đã được thanh toán.',
   'Order status changed and can no longer be cancelled': 'Trạng thái đơn hàng đã thay đổi nên không thể hủy.',
+  'Payment not found': 'Không tìm thấy giao dịch thanh toán.',
+  'Payment for this order already exists': 'Đơn hàng này đã có giao dịch thanh toán.',
+  'Payment is already completed or refunded': 'Giao dịch đã hoàn tất hoặc đã hoàn tiền.',
+  'Mock payment is not enabled for this payment method': 'Phương thức này chưa bật giả lập thanh toán.',
+  'Refund not found': 'Không tìm thấy yêu cầu hoàn tiền.',
 };
 
 const normalizeErrorMessage = (error) => {

@@ -90,6 +90,45 @@ export const getOrderStatusStats = async () => {
   return api.get('/orders/stats/by-status').then(unwrapData);
 };
 
+const normalizePayment = (payment) => {
+  if (!payment) {
+    return null;
+  }
+
+  return {
+    ...payment,
+    id: payment.id,
+    orderId: payment.order_id,
+    userId: payment.user_id,
+    transactionId: payment.transaction_id,
+    method: payment.payment_method,
+    amount: Number(payment.amount || 0),
+    paidAt: payment.paid_at ? new Intl.DateTimeFormat('vi-VN').format(new Date(payment.paid_at)) : '',
+    createdAt: payment.created_at ? new Intl.DateTimeFormat('vi-VN').format(new Date(payment.created_at)) : '',
+    refunds: payment.refunds || [],
+  };
+};
+
+export const getPayments = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/payments', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.payments || []).map(normalizePayment).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const createRefund = async (paymentId, payload) => {
+  const data = await api.post(`/payments/${paymentId}/refunds`, payload).then(unwrapData);
+  return data.refund;
+};
+
+export const updateRefundStatus = async (paymentId, refundId, status) => {
+  const data = await api.patch(`/payments/${paymentId}/refunds/${refundId}`, { status }).then(unwrapData);
+  return data.refund;
+};
+
 const normalizeCustomer = (customer) => {
   const fullName =
     customer.full_name ||

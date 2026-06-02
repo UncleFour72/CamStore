@@ -8,7 +8,9 @@ import CartPage from './pages/CartPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import MockPaymentPage from './pages/MockPaymentPage.jsx';
 import OrderHistoryPage from './pages/OrderHistoryPage.jsx';
+import PaymentResultPage from './pages/PaymentResultPage.jsx';
 import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import ProductListPage from './pages/ProductListPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
@@ -17,6 +19,7 @@ import AdminCategories from './pages/admin/AdminCategories.jsx';
 import AdminCustomers from './pages/admin/AdminCustomers.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminOrders from './pages/admin/AdminOrders.jsx';
+import AdminPayments from './pages/admin/AdminPayments.jsx';
 import AdminProducts from './pages/admin/AdminProducts.jsx';
 import CleaningServicePage from './pages/services/CleaningServicePage.jsx';
 import TradeInServicePage from './pages/services/TradeInServicePage.jsx';
@@ -87,6 +90,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="payment/result" element={<PaymentResultPage />} />
+          <Route path="payment/mock-checkout" element={<MockPaymentPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route
@@ -119,6 +124,7 @@ export default function App() {
           <Route path="products" element={<AdminProducts />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="payments" element={<AdminPayments />} />
           <Route path="customers" element={<AdminCustomers />} />
         </Route>
 
