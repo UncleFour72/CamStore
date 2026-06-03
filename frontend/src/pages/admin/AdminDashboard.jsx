@@ -4,63 +4,129 @@ import {
   Download,
   ShoppingBag,
   Target,
-  TrendingDown,
   TrendingUp,
   UserPlus,
 } from 'lucide-react';
-import { products } from '../../data/catalog.js';
+import { useEffect, useMemo, useState } from 'react';
+import * as adminService from '../../services/adminService.js';
 import { formatPrice } from '../../utils/helpers.js';
 
-const metrics = [
-  {
-    label: 'Doanh thu tháng',
-    value: '1.280.000.000đ',
-    change: '+12.5%',
-    trend: 'up',
-    icon: Banknote,
-    tone: 'blue',
-  },
-  {
-    label: 'Đơn hàng mới',
-    value: '142',
-    change: '+8.2%',
-    trend: 'up',
-    icon: ShoppingBag,
-    tone: 'indigo',
-  },
-  {
-    label: 'Khách hàng mới',
-    value: '89',
-    change: '+5.1%',
-    trend: 'up',
-    icon: UserPlus,
-    tone: 'orange',
-  },
-  {
-    label: 'Tỷ lệ chuyển đổi',
-    value: '4.82%',
-    change: '-2.4%',
-    trend: 'down',
-    icon: Target,
-    tone: 'red',
-  },
-];
+const fallbackProductImage =
+  'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=120&q=80';
 
-const latestOrders = [
-  ['#ORD-8821', 'Sony A7 IV + 24-70mm', 62500000, 'Đã thanh toán', products[0].image, 'paid'],
-  ['#ORD-8820', 'Canon EOS R5 Body', 85900000, 'Đang xử lý', products[1].image, 'pending'],
-  ['#ORD-8819', 'Nikon Z9 + FTZ II', 129000000, 'Chờ xác nhận', products[5].image, 'waiting'],
-  ['#ORD-8818', 'Fujifilm X-T5 + 35mm f1.4', 48200000, 'Đã thanh toán', products[2].image, 'paid'],
-  ['#ORD-8817', 'Leica M11 Silver', 215000000, 'Đang xử lý', products[4].image, 'pending'],
-];
+const statusTones = {
+  pending: 'waiting',
+  confirmed: 'paid',
+  processing: 'pending',
+  shipping: 'shipping',
+  delivered: 'done',
+  cancelled: 'waiting',
+};
+
+const formatDateLabel = (value) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(date);
+};
+
+const buildOrderName = (order) => {
+  const names = (order.items || []).map((item) => item.productName).filter(Boolean);
+
+  if (names.length === 0) {
+    return order.customerName || 'Đơn hàng mới';
+  }
+
+  if (names.length === 1) {
+    return names[0];
+  }
+
+  return `${names[0]} và ${names.length - 1} sản phẩm khác`;
+};
 
 export default function AdminDashboard() {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadSummary = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const data = await adminService.getDashboardSummary({ days: 7, recent_limit: 5 });
+
+        if (!ignore) {
+          setSummary(data);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.response?.data?.message || 'Không tải được dữ liệu tổng quan.');
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadSummary();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const metrics = summary?.metrics || {};
+  const chart = summary?.revenue_chart || [];
+  const maxRevenue = useMemo(() => Math.max(...chart.map((point) => Number(point.revenue || 0)), 0), [chart]);
+
+  const metricCards = [
+    {
+      label: 'Doanh thu tháng',
+      value: formatPrice(metrics.monthly_revenue || 0),
+      change: 'Tháng hiện tại',
+      icon: Banknote,
+      tone: 'blue',
+    },
+    {
+      label: 'Đơn hàng mới',
+      value: Number(metrics.orders_count || 0).toLocaleString('vi-VN'),
+      change: 'Theo bộ lọc tháng',
+      icon: ShoppingBag,
+      tone: 'indigo',
+    },
+    {
+      label: 'Khách hàng mới',
+      value: Number(metrics.new_customers_count || 0).toLocaleString('vi-VN'),
+      change: 'Tài khoản customer',
+      icon: UserPlus,
+      tone: 'orange',
+    },
+    {
+      label: 'Tỷ lệ chuyển đổi',
+      value:
+        metrics.conversion_rate === null || metrics.conversion_rate === undefined
+          ? 'Chưa có dữ liệu'
+          : `${metrics.conversion_rate}%`,
+      change: metrics.visitors_count ? `${metrics.visitors_count} lượt truy cập` : 'Cần truyền visitors',
+      icon: Target,
+      tone: 'red',
+    },
+  ];
+
   return (
     <main className="admin-content">
       <section className="admin-page-head">
         <div>
           <h1>Tổng quan hệ thống</h1>
-          <p>Chào mừng trở lại! Đây là tóm tắt hoạt động kinh doanh hôm nay.</p>
+          <p>Chào mừng trở lại! Đây là tóm tắt hoạt động kinh doanh lấy trực tiếp từ backend.</p>
         </div>
         <div className="admin-head-actions">
           <button type="button" className="admin-btn light">
@@ -72,21 +138,22 @@ export default function AdminDashboard() {
         </div>
       </section>
 
+      {error && <p className="form-error">{error}</p>}
+
       <section className="admin-metric-grid">
-        {metrics.map((metric) => {
+        {metricCards.map((metric) => {
           const Icon = metric.icon;
-          const TrendIcon = metric.trend === 'up' ? TrendingUp : TrendingDown;
 
           return (
             <article className="admin-metric-card" key={metric.label}>
               <div className={`admin-metric-icon ${metric.tone}`}>
                 <Icon size={25} />
               </div>
-              <span className={metric.trend === 'up' ? 'metric-change up' : 'metric-change down'}>
-                {metric.change} <TrendIcon size={17} />
+              <span className="metric-change up">
+                {metric.change} <TrendingUp size={17} />
               </span>
               <p>{metric.label}</p>
-              <strong>{metric.value}</strong>
+              <strong>{loading ? '...' : metric.value}</strong>
             </article>
           );
         })}
@@ -97,39 +164,35 @@ export default function AdminDashboard() {
           <div className="admin-card-head">
             <div>
               <h2>Doanh thu 7 ngày qua</h2>
-              <p>Thống kê biến động từ ngày 18 - 24 Tháng 5</p>
+              <p>Doanh thu chỉ tính các đơn đang hoạt động, không tính đơn đã hủy.</p>
             </div>
             <span className="chart-legend">Doanh số</span>
           </div>
           <div className="admin-line-chart" aria-label="Biểu đồ doanh thu">
-            <svg viewBox="0 0 760 360" role="img">
-              <defs>
-                <linearGradient id="adminChartFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#006a9f" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="#006a9f" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M26 306 C132 245 197 194 266 188 C335 182 354 265 404 238 C454 211 456 108 523 112 C590 116 583 278 642 250 C701 222 680 18 734 46 C760 60 768 122 768 122 L768 342 L26 342 Z"
-                fill="url(#adminChartFill)"
-              />
-              <path
-                d="M26 306 C132 245 197 194 266 188 C335 182 354 265 404 238 C454 211 456 108 523 112 C590 116 583 278 642 250 C701 222 680 18 734 46 C760 60 768 122 768 122"
-                fill="none"
-                stroke="#006a9f"
-                strokeLinecap="round"
-                strokeWidth="5"
-              />
-            </svg>
-            <div className="chart-days">
-              <span>18/05</span>
-              <span>19/05</span>
-              <span>20/05</span>
-              <span>21/05</span>
-              <span>22/05</span>
-              <span>23/05</span>
-              <span>Hôm nay</span>
-            </div>
+            {loading ? (
+              <div className="admin-empty-row">Đang tải biểu đồ...</div>
+            ) : (
+              <>
+                <div className="admin-bars">
+                  {chart.map((point) => {
+                    const height = maxRevenue > 0 ? Math.max(12, Math.round((point.revenue / maxRevenue) * 100)) : 12;
+
+                    return (
+                      <span
+                        key={point.date}
+                        style={{ height: `${height}%` }}
+                        title={`${formatDateLabel(point.date)}: ${formatPrice(point.revenue || 0)}`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="chart-days">
+                  {chart.map((point) => (
+                    <span key={point.date}>{formatDateLabel(point.date)}</span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </article>
 
@@ -139,19 +202,31 @@ export default function AdminDashboard() {
             <a href="/admin/orders">Xem tất cả</a>
           </div>
           <div className="latest-order-list">
-            {latestOrders.map(([id, name, total, status, image, tone]) => (
-              <div className="latest-order-item" key={id}>
-                <img src={image} alt={name} />
-                <div>
-                  <strong>{id}</strong>
-                  <p>{name}</p>
-                </div>
-                <div>
-                  <span className={`admin-status ${tone}`}>{status}</span>
-                  <b>{formatPrice(total)}</b>
-                </div>
-              </div>
-            ))}
+            {loading ? (
+              <div className="admin-empty-row">Đang tải đơn hàng...</div>
+            ) : summary?.recent_orders?.length ? (
+              summary.recent_orders.map((order) => {
+                const firstItem = order.items?.[0];
+
+                return (
+                  <div className="latest-order-item" key={order.id}>
+                    <img src={firstItem?.productImage || fallbackProductImage} alt={buildOrderName(order)} />
+                    <div>
+                      <strong>{order.orderNumber || `#${order.id}`}</strong>
+                      <p>{buildOrderName(order)}</p>
+                    </div>
+                    <div>
+                      <span className={`admin-status ${statusTones[order.status] || 'waiting'}`}>
+                        {order.statusLabel}
+                      </span>
+                      <b>{formatPrice(order.total)}</b>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="admin-empty-row">Chưa có đơn hàng mới.</div>
+            )}
           </div>
         </article>
       </section>

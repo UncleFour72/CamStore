@@ -93,6 +93,15 @@ export const getOrderStatusStats = async () => {
   return api.get('/orders/stats/by-status').then(unwrapData);
 };
 
+export const getDashboardSummary = async (params = {}) => {
+  const data = await api.get('/admin/dashboard', { params }).then(unwrapData);
+
+  return {
+    ...data,
+    recent_orders: (data.recent_orders || []).map(normalizeOrder).filter(Boolean),
+  };
+};
+
 const normalizePayment = (payment) => {
   if (!payment) {
     return null;
