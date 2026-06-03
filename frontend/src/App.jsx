@@ -28,6 +28,7 @@ import AdminWarranty from './pages/admin/AdminWarranty.jsx';
 import CleaningServicePage from './pages/services/CleaningServicePage.jsx';
 import TradeInServicePage from './pages/services/TradeInServicePage.jsx';
 import WarrantyServicePage from './pages/services/WarrantyServicePage.jsx';
+import WishlistPage from './pages/WishlistPage.jsx';
 
 function ProtectedRoute({ children }) {
   const location = useLocation();
@@ -87,6 +88,14 @@ export default function App() {
           <Route path="services/trade-in" element={<TradeInServicePage />} />
           <Route path="services/cleaning" element={<CleaningServicePage />} />
           <Route path="cart" element={<CartPage />} />
+          <Route
+            path="wishlist"
+            element={
+              <ProtectedRoute>
+                <WishlistPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="checkout"
             element={

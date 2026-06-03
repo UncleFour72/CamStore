@@ -1,5 +1,6 @@
 import {
   ChevronDown,
+  Heart,
   LogOut,
   Menu,
   PackageCheck,
@@ -10,12 +11,13 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { storefrontCategories } from '../../data/assets.js';
 import { useCart } from '../../hooks/useCart.js';
 import { logoutUser } from '../../store/slices/authSlice.js';
+import { fetchWishlist } from '../../store/slices/wishlistSlice.js';
 import { classNames } from '../../utils/helpers.js';
 
 const navItems = storefrontCategories.map((category) => ({
@@ -53,11 +55,18 @@ export default function Header() {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const { itemCount } = useCart();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { hasLoaded: wishlistLoaded, isLoading: wishlistLoading } = useSelector((state) => state.wishlist);
   const location = useLocation();
   const serviceActive = location.pathname.startsWith('/services');
   const activeCategory = new URLSearchParams(location.search).get('category');
   const userName =
     user?.name || user?.full_name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email;
+
+  useEffect(() => {
+    if (isAuthenticated && !wishlistLoaded && !wishlistLoading) {
+      dispatch(fetchWishlist());
+    }
+  }, [dispatch, isAuthenticated, wishlistLoaded, wishlistLoading]);
 
   function closeMenus() {
     setIsOpen(false);
@@ -177,6 +186,10 @@ export default function Header() {
                     <User size={18} />
                     <span>Thong tin tai khoan</span>
                   </Link>
+                  <Link to="/wishlist" onClick={closeMenus}>
+                    <Heart size={18} />
+                    <span>Yêu thích</span>
+                  </Link>
                   <Link to="/orders" onClick={closeMenus}>
                     <PackageCheck size={18} />
                     <span>Don hang</span>
@@ -263,6 +276,13 @@ export default function Header() {
                 onClick={closeMenus}
               >
                 Ho so
+              </Link>
+              <Link
+                className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
+                to="/wishlist"
+                onClick={closeMenus}
+              >
+                Wishlist
               </Link>
               <Link
                 className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"

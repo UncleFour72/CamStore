@@ -1,11 +1,16 @@
 import { Heart, ShoppingCart, Star } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../hooks/useCart.js';
+import { toggleWishlist } from '../../store/slices/wishlistSlice.js';
 import { formatPrice, getCategoryLabel } from '../../utils/helpers.js';
 
 export default function ProductCard({ product }) {
+  const dispatch = useDispatch();
   const { addItem } = useCart();
+  const { productIds, isLoading } = useSelector((state) => state.wishlist);
   const productApiId = product.productId || product.apiId || product.id;
+  const isWishlisted = productIds.some((id) => Number(id) === Number(productApiId));
 
   return (
     <article className="product-card">
@@ -31,8 +36,14 @@ export default function ProductCard({ product }) {
             <small>{formatPrice(product.oldPrice)}</small>
           </div>
           <div className="product-actions">
-            <button type="button" className="icon-button subtle" aria-label="Yêu thích">
-              <Heart size={19} />
+            <button
+              type="button"
+              className="icon-button subtle"
+              aria-label="Yêu thích"
+              disabled={isLoading}
+              onClick={() => dispatch(toggleWishlist(productApiId))}
+            >
+              <Heart size={19} fill={isWishlisted ? 'currentColor' : 'none'} />
             </button>
             <button
               type="button"

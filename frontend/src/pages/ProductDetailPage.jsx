@@ -1,6 +1,7 @@
 import {
   CheckCircle2,
   ChevronRight,
+  Heart,
   ShoppingCart,
   Star,
   Truck,
@@ -15,6 +16,7 @@ import { useCart } from '../hooks/useCart.js';
 import { fetchOrders } from '../store/slices/orderSlice.js';
 import { clearCurrentProduct, fetchProduct, fetchProducts } from '../store/slices/productSlice.js';
 import { clearReviewError, createReview, fetchProductReviews } from '../store/slices/reviewSlice.js';
+import { fetchWishlist, toggleWishlist } from '../store/slices/wishlistSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
 export default function ProductDetailPage() {
@@ -26,6 +28,11 @@ export default function ProductDetailPage() {
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { orders: deliveredOrders } = useSelector((state) => state.order);
   const { reviews, isLoading: reviewsLoading, error: reviewError } = useSelector((state) => state.review);
+  const {
+    productIds: wishlistProductIds,
+    hasLoaded: wishlistLoaded,
+    isLoading: wishlistLoading,
+  } = useSelector((state) => state.wishlist);
   const [selectedImage, setSelectedImage] = useState('');
   const [combo, setCombo] = useState('body');
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
@@ -52,8 +59,12 @@ export default function ProductDetailPage() {
 
     if (isAuthenticated) {
       dispatch(fetchOrders({ status: 'delivered', limit: 100 }));
+
+      if (!wishlistLoaded) {
+        dispatch(fetchWishlist());
+      }
     }
-  }, [dispatch, isAuthenticated, product]);
+  }, [dispatch, isAuthenticated, product, wishlistLoaded]);
 
   const relatedProducts = useMemo(() => {
     return products.filter((item) => item.id !== product?.id).slice(0, 4);
@@ -69,6 +80,10 @@ export default function ProductDetailPage() {
       order.status === 'delivered' && order.items.some((item) => Number(item.productId) === productApiId)
     );
   }, [deliveredOrders, product?.apiId, product?.productId]);
+  const isWishlisted = useMemo(() => {
+    const productApiId = Number(product?.productId || product?.apiId);
+    return wishlistProductIds.some((id) => Number(id) === productApiId);
+  }, [product?.apiId, product?.productId, wishlistProductIds]);
 
   function updateReviewForm(event) {
     dispatch(clearReviewError());
@@ -100,6 +115,14 @@ export default function ProductDetailPage() {
     } catch {
       // Redux state already carries the visible error.
     }
+  }
+
+  function handleToggleWishlist() {
+    if (!product) {
+      return;
+    }
+
+    dispatch(toggleWishlist(product.productId || product.apiId));
   }
 
   async function handleAddToCart({ goToCheckout = false } = {}) {
@@ -251,6 +274,15 @@ export default function ProductDetailPage() {
                 onClick={() => handleAddToCart({ goToCheckout: true })}
               >
                 Mua ngay
+              </button>
+              <button
+                className="button secondary full"
+                type="button"
+                onClick={handleToggleWishlist}
+                disabled={wishlistLoading}
+              >
+                <Heart size={20} fill={isWishlisted ? 'currentColor' : 'none'} />
+                {isWishlisted ? 'Đã lưu wishlist' : 'Lưu vào wishlist'}
               </button>
             </div>
 

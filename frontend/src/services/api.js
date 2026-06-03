@@ -22,6 +22,8 @@ const MESSAGE_MAP = {
   'Invalid or expired token': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   'Cart is empty': 'Giỏ hàng đang trống.',
   'Product not found': 'Không tìm thấy sản phẩm.',
+  'product_id must be a positive integer': 'Mã sản phẩm yêu thích không hợp lệ.',
+  'productId must be a positive integer': 'Mã sản phẩm yêu thích không hợp lệ.',
   'Order not found': 'Không tìm thấy đơn hàng.',
   'You cannot access this order': 'Bạn không có quyền xem đơn hàng này.',
   'You cannot cancel this order': 'Bạn không có quyền hủy đơn hàng này.',
