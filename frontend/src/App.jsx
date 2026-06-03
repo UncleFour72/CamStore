@@ -24,6 +24,7 @@ import AdminOrders from './pages/admin/AdminOrders.jsx';
 import AdminPayments from './pages/admin/AdminPayments.jsx';
 import AdminProducts from './pages/admin/AdminProducts.jsx';
 import AdminReviews from './pages/admin/AdminReviews.jsx';
+import AdminWarranty from './pages/admin/AdminWarranty.jsx';
 import CleaningServicePage from './pages/services/CleaningServicePage.jsx';
 import TradeInServicePage from './pages/services/TradeInServicePage.jsx';
 import WarrantyServicePage from './pages/services/WarrantyServicePage.jsx';
@@ -131,6 +132,7 @@ export default function App() {
           <Route path="payments" element={<AdminPayments />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="blog" element={<AdminBlog />} />
+          <Route path="warranty" element={<AdminWarranty />} />
           <Route path="customers" element={<AdminCustomers />} />
         </Route>
 

@@ -51,6 +51,11 @@ const MESSAGE_MAP = {
   'is_featured boolean is required': 'Trạng thái bài nổi bật không hợp lệ.',
   'A valid email is required': 'Vui lòng nhập email hợp lệ.',
   'Newsletter subscriber not found': 'Không tìm thấy người đăng ký nhận tin.',
+  'Warranty not found': 'Không tìm thấy phiếu bảo hành.',
+  'You cannot access this warranty': 'Bạn không có quyền xem phiếu bảo hành này.',
+  'Invalid warranty status': 'Trạng thái bảo hành không hợp lệ.',
+  'query is required': 'Vui lòng nhập thông tin cần tra cứu.',
+  'customer_name and customer_phone are required for instore warranty activation': 'Vui lòng nhập tên và số điện thoại khách hàng để kích hoạt bảo hành tại quầy.',
 };
 
 const normalizeErrorMessage = (error) => {

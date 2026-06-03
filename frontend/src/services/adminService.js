@@ -3,6 +3,7 @@ import { normalizePost } from './blogService.js';
 import { normalizeOrder } from './orderService.js';
 import { normalizeCategory, normalizeProduct } from './productService.js';
 import { normalizeReview } from './reviewService.js';
+import { normalizeWarranty } from './warrantyService.js';
 
 const normalizePagination = (pagination = {}, params = {}) => {
   const pageSize = pagination.limit || params.limit || params.pageSize || 20;
@@ -179,6 +180,26 @@ export const toggleBlogPublish = async (id, isPublished) => {
 export const toggleBlogFeatured = async (id, isFeatured) => {
   const data = await api.patch(`/blogs/${id}/featured`, { is_featured: isFeatured }).then(unwrapData);
   return normalizePost(data.post);
+};
+
+export const getWarranties = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/warranties', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.warranties || []).map(normalizeWarranty),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const createWarranty = async (payload) => {
+  const data = await api.post('/warranties', payload).then(unwrapData);
+  return normalizeWarranty(data.warranty);
+};
+
+export const updateWarranty = async (id, payload) => {
+  const data = await api.put(`/warranties/${id}`, payload).then(unwrapData);
+  return normalizeWarranty(data.warranty);
 };
 
 const normalizeCustomer = (customer) => {

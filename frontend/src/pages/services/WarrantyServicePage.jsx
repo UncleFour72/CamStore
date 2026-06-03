@@ -1,4 +1,6 @@
 import { MessageSquare, Phone, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { lookupWarranties } from '../../services/warrantyService.js';
 
 const warrantyRows = [
   ['Máy ảnh & body', '12-24 tháng tùy sản phẩm, áp dụng lỗi phần cứng do nhà sản xuất.'],
@@ -8,6 +10,31 @@ const warrantyRows = [
 ];
 
 export default function WarrantyServicePage() {
+  const [query, setQuery] = useState('');
+  const [warranties, setWarranties] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleLookup(event) {
+    event.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const result = await lookupWarranties(query.trim());
+      setWarranties(result);
+
+      if (result.length === 0) {
+        setError('Không tìm thấy phiếu bảo hành phù hợp.');
+      }
+    } catch (lookupError) {
+      setError(lookupError.response?.data?.message || 'Không thể tra cứu bảo hành.');
+      setWarranties([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <main className="policy-page">
       <article className="policy-container">
@@ -72,7 +99,33 @@ export default function WarrantyServicePage() {
 
         <section className="policy-help">
           <h2>Cần kiểm tra bảo hành?</h2>
-          <p>Gửi serial hoặc hình ảnh lỗi để CamStore hỗ trợ kiểm tra nhanh trước khi bạn mang thiết bị đến cửa hàng.</p>
+          <p>Nhập số điện thoại, mã đơn hàng, mã bảo hành hoặc serial để kiểm tra nhanh trạng thái bảo hành.</p>
+          <form className="warranty-lookup-form" onSubmit={handleLookup}>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="SĐT / mã đơn / serial / mã bảo hành"
+              required
+            />
+            <button className="button primary" type="submit" disabled={isLoading}>
+              {isLoading ? 'Đang tra...' : 'Tra cứu'}
+            </button>
+          </form>
+          {error && <p className="form-error">{error}</p>}
+          {warranties.length > 0 && (
+            <div className="warranty-results">
+              {warranties.map((warranty) => (
+                <article key={warranty.id}>
+                  <strong>{warranty.productName}</strong>
+                  <span>Mã BH: {warranty.code}</span>
+                  <span>Đơn hàng: {warranty.orderNumber}</span>
+                  <span>Serial: {warranty.serialNumber}</span>
+                  <span>Hiệu lực: {warranty.startDate} - {warranty.endDate}</span>
+                  <b>{warranty.status}</b>
+                </article>
+              ))}
+            </div>
+          )}
           <div>
             <a className="button primary" href="tel:19008888">
               <Phone size={17} /> Hotline: 1900 8888
