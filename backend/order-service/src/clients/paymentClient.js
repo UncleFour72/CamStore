@@ -29,6 +29,14 @@ export const retryPayment = async (orderId, payload) => {
   });
 };
 
+export const completeCodPaymentForDelivery = async (orderId, payload = {}) => {
+  return requestJson(`${PAYMENT_SERVICE_URL}/api/payments/order/${orderId}/complete-cod`, {
+    method: 'PATCH',
+    headers: internalHeaders(),
+    body: JSON.stringify(payload),
+  });
+};
+
 export const getPaymentByOrderId = async (orderId) => {
   try {
     return await requestJson(`${PAYMENT_SERVICE_URL}/api/payments/order/${orderId}`, {

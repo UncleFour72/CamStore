@@ -1,6 +1,11 @@
 import { Op } from 'sequelize';
 import { clearCartForUser, getCartForUser } from '../clients/cartClient.js';
-import { createPayment, getPaymentByOrderId, retryPayment } from '../clients/paymentClient.js';
+import {
+  completeCodPaymentForDelivery,
+  createPayment,
+  getPaymentByOrderId,
+  retryPayment,
+} from '../clients/paymentClient.js';
 import { decrementStock, getProductSnapshot, incrementStock } from '../clients/productClient.js';
 import { Order, OrderItem, OrderStatusHistory, sequelize, Warranty } from '../models/index.js';
 
@@ -705,6 +710,18 @@ export const updateOrderStatus = async (req, res, next) => {
 
     await transaction.commit();
     transaction = null;
+
+    if (status === 'delivered') {
+      try {
+        await completeCodPaymentForDelivery(order.id, {
+          note: note || 'COD collected when order was delivered',
+        });
+      } catch (error) {
+        if (error.statusCode !== 404) {
+          console.warn(`COD payment completion failed for order ${order.id}:`, error.message);
+        }
+      }
+    }
 
     const freshOrder = await findOrderByIdOrNumber(order.id);
     return res.json({ order: await attachPaymentToOrder(freshOrder) });

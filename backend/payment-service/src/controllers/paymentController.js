@@ -442,6 +442,66 @@ export const getPaymentByOrderId = async (req, res, next) => {
   }
 };
 
+export const completeCodPaymentForDelivery = async (req, res, next) => {
+  try {
+    const orderId = toPositiveInt(req.params.orderId);
+
+    if (!orderId) {
+      return res.status(400).json({ message: 'order_id must be a positive integer' });
+    }
+
+    const payment = await Payment.findOne({
+      where: { order_id: orderId },
+      include: [{ model: Refund, as: 'refunds' }],
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    if (payment.status === 'completed') {
+      return res.json({ payment, changed: false });
+    }
+
+    if (payment.payment_method !== 'cod') {
+      return res.json({
+        payment,
+        changed: false,
+        reason: 'payment_method_not_cod',
+      });
+    }
+
+    if (payment.status === 'refunded') {
+      return res.status(409).json({ message: 'Payment is already completed or refunded' });
+    }
+
+    payment.appendCallbackData({
+      provider: 'cod',
+      status: 'collected_on_delivery',
+      payload: {
+        order_id: orderId,
+        note: req.body.note || null,
+      },
+    });
+
+    await payment.update({
+      status: 'completed',
+      transaction_id: payment.transaction_id || `COD-${payment.id}-${Date.now()}`,
+      paid_at: payment.paid_at || new Date(),
+      payment_url: null,
+      callback_data: payment.callback_data,
+    });
+
+    const freshPayment = await Payment.findByPk(payment.id, {
+      include: [{ model: Refund, as: 'refunds' }],
+    });
+
+    return res.json({ payment: freshPayment, changed: true });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const handleVnpayIpn = async (req, res, next) => {
   try {
     const verification = verifyVnpayCallback(req.query);

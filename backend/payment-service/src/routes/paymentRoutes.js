@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   completeMockPayment,
+  completeCodPaymentForDelivery,
   createPaymentRecord,
   createRefund,
   getPaymentById,
@@ -34,6 +35,7 @@ router.post('/payments', requireInternal, createPaymentRecord);
 router.get('/payments', authenticate, requireAdmin, getPayments);
 router.get('/payments/order/:orderId', optionalAuthenticate, requireInternalOrAdmin, getPaymentByOrderId);
 router.patch('/payments/order/:orderId/retry', requireInternal, retryPaymentRecord);
+router.patch('/payments/order/:orderId/complete-cod', requireInternal, completeCodPaymentForDelivery);
 router.get('/payments/:id', optionalAuthenticate, requireInternalOrAdmin, getPaymentById);
 router.post('/payments/:id/refunds', optionalAuthenticate, requireInternalOrAdmin, createRefund);
 router.patch('/payments/:id/refunds/:refundId', authenticate, requireAdmin, updateRefundStatus);
