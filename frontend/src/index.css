@@ -7246,8 +7246,231 @@ img {
 
 @tailwind utilities;
 
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-trigger {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #04789d;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.notification-trigger:hover {
+  background: #e7f4fa;
+}
+
+.notification-count {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 2px solid #f3f8fc;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #cf1b1b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 80;
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid #d7e3ee;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.14);
+}
+
+.notification-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid #e4edf5;
+}
+
+.notification-panel-head strong {
+  display: block;
+  color: #111820;
+  font-size: 16px;
+}
+
+.notification-panel-head small {
+  color: #607182;
+  font-size: 13px;
+}
+
+.notification-panel-head button {
+  min-height: 34px;
+  border: 1px solid #c9dae8;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background: #f6fbff;
+  color: #04789d;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.notification-panel-head button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.notification-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.notification-empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  color: #607182;
+  text-align: center;
+  font-weight: 700;
+}
+
+.notification-item {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 9px 1fr;
+  gap: 10px;
+  padding: 11px 10px;
+  background: transparent;
+  color: #111820;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-item:hover,
+.notification-item.unread {
+  background: #eef7fc;
+}
+
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.notification-item.unread .notification-dot {
+  background: #04789d;
+}
+
+.notification-item strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #111820;
+  font-size: 14px;
+}
+
+.notification-item small {
+  display: block;
+  color: #354454;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.notification-item em {
+  display: block;
+  margin-top: 5px;
+  color: #7a8b9c;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.admin-top-actions .notification-bell button {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+}
+
+.admin-top-actions .notification-trigger {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+}
+
+.admin-top-actions .notification-panel button {
+  position: static;
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  display: inline-flex;
+  background: transparent;
+}
+
+.admin-top-actions .notification-panel-head button {
+  border-radius: 999px;
+  background: #f6fbff;
+}
+
+.admin-top-actions .notification-panel span {
+  position: static;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+}
+
+.admin-top-actions .notification-panel .notification-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 999px;
+}
+
+.admin-top-actions .notification-panel .notification-item.unread .notification-dot {
+  background: #04789d;
+}
+
+.admin-top-actions .notification-count {
+  position: absolute;
+  width: auto;
+  height: 18px;
+  border-radius: 999px;
+  background: #cf1b1b;
+}
+
 @media (max-width: 620px) {
   .warranty-lookup-form {
     grid-template-columns: 1fr;
+  }
+
+  .notification-panel {
+    right: -68px;
   }
 }

@@ -145,6 +145,23 @@ export default function AdminPayments() {
     }
   };
 
+  const confirmBankTransfer = async (payment) => {
+    if (!window.confirm('Xác nhận đã nhận chuyển khoản cho thanh toán này?')) {
+      return;
+    }
+
+    setError('');
+    setNotice('');
+
+    try {
+      await adminService.confirmBankTransferPayment(payment.id);
+      setNotice('Đã xác nhận chuyển khoản và cập nhật đơn hàng.');
+      await loadPayments();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể xác nhận chuyển khoản.');
+    }
+  };
+
   return (
     <main className="admin-content">
       <section className="admin-page-head">
@@ -293,9 +310,16 @@ export default function AdminPayments() {
                   ))
                 )}
               </div>
-              <button type="button" className="admin-pill-button" onClick={() => startRefund(payment)}>
+              <div className="admin-refund-stack">
+                {payment.method === 'bank_transfer' && payment.status === 'pending' && (
+                  <button type="button" className="admin-pill-button active" onClick={() => confirmBankTransfer(payment)}>
+                    Xác nhận chuyển khoản
+                  </button>
+                )}
+                <button type="button" className="admin-pill-button" onClick={() => startRefund(payment)}>
                 <RotateCcw size={17} /> Hoàn tiền
-              </button>
+                </button>
+              </div>
             </div>
           ))
         )}

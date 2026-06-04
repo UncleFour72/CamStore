@@ -6,7 +6,8 @@ $services = @(
   "order-service",
   "payment-service",
   "review-service",
-  "blog-service"
+  "blog-service",
+  "notification-service"
 )
 
 foreach ($service in $services) {

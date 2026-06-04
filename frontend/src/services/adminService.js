@@ -242,6 +242,11 @@ export const createRefund = async (paymentId, payload) => {
   return data.refund;
 };
 
+export const confirmBankTransferPayment = async (paymentId, payload = {}) => {
+  const data = await api.patch(`/payments/${paymentId}/confirm-bank-transfer`, payload).then(unwrapData);
+  return normalizePayment(data.payment);
+};
+
 export const updateRefundStatus = async (paymentId, refundId, status) => {
   const data = await api.patch(`/payments/${paymentId}/refunds/${refundId}`, { status }).then(unwrapData);
   return data.refund;

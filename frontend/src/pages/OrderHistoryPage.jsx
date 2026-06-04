@@ -20,6 +20,7 @@ const fallbackOrderImage =
   'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=300&q=80';
 
 const paymentMethodOptions = [
+  { value: 'bank_transfer', label: 'Chuyển khoản ngân hàng' },
   { value: 'vnpay', label: 'VNPay / Ngân hàng' },
   { value: 'momo', label: 'Ví MoMo' },
   { value: 'cod', label: 'COD' },

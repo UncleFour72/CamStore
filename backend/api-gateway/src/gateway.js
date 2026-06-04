@@ -62,6 +62,10 @@ const routeMap = [
     service: 'blog',
     matcher: (path) => path.startsWith('/api/blogs') || path.startsWith('/api/newsletter'),
   },
+  {
+    service: 'notification',
+    matcher: (path) => path.startsWith('/api/notifications'),
+  },
 ];
 
 const resolveService = (path) => {
@@ -109,6 +113,7 @@ router.get('/api/gateway/routes', (req, res) => {
       payment: ['/api/payments'],
       review: ['/api/reviews', '/api/products/:productId/reviews'],
       blog: ['/api/blogs', '/api/newsletter'],
+      notification: ['/api/notifications'],
       admin: ['/api/admin/dashboard', '/api/admin/customers', '/api/orders/stats/*', '/api/users/stats/*'],
     },
   });

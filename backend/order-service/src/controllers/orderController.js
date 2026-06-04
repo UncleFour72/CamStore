@@ -6,6 +6,7 @@ import {
   getPaymentByOrderId,
   retryPayment,
 } from '../clients/paymentClient.js';
+import { notifyAdmin, notifyUser } from '../clients/notificationClient.js';
 import { decrementStock, getProductSnapshot, incrementStock } from '../clients/productClient.js';
 import { Order, OrderItem, OrderStatusHistory, sequelize, Warranty } from '../models/index.js';
 
@@ -18,7 +19,7 @@ const ORDER_STATUS_TRANSITIONS = {
   delivered: [],
   cancelled: [],
 };
-const ONLINE_PAYMENT_METHODS = ['cod', 'vnpay', 'momo'];
+const ONLINE_PAYMENT_METHODS = ['cod', 'vnpay', 'momo', 'bank_transfer'];
 const INSTORE_PAYMENT_METHODS = ['cash', 'bank_transfer', 'pos_card'];
 const CUSTOMER_CANCEL_WINDOW_MINUTES = Number(process.env.CUSTOMER_CANCEL_WINDOW_MINUTES || 60);
 const SHIPPING_FIELDS = [
@@ -441,6 +442,87 @@ const isWithinCustomerCancelWindow = (order) => {
   return elapsedMs <= CUSTOMER_CANCEL_WINDOW_MINUTES * 60 * 1000;
 };
 
+const statusNotification = (order, status) => {
+  const orderNumber = order.order_number;
+  const messages = {
+    confirmed: {
+      title: 'Đơn hàng đã được xác nhận',
+      message: 'Đơn hàng đã được xác nhận và đang được xử lý.',
+    },
+    processing: {
+      title: 'Đơn hàng đang được xử lý',
+      message: `Đơn hàng ${orderNumber} đang được xử lý.`,
+    },
+    shipping: {
+      title: 'Đơn hàng đang được giao',
+      message: `Đơn hàng ${orderNumber} đang trên đường giao đến bạn.`,
+    },
+    delivered: {
+      title: 'Đơn hàng đã giao thành công',
+      message: `Đơn hàng ${orderNumber} đã được giao thành công.`,
+    },
+    cancelled: {
+      title: 'Đơn hàng đã bị hủy',
+      message: `Đơn hàng ${orderNumber} đã bị hủy.`,
+    },
+  };
+
+  return messages[status] || null;
+};
+
+const notifyOrderStatusChanged = async (order, status) => {
+  const content = statusNotification(order, status);
+
+  if (!content) {
+    return;
+  }
+
+  await notifyUser({
+    userId: order.user_id,
+    title: content.title,
+    message: content.message,
+    type: 'order_status',
+    entityType: 'order',
+    entityId: order.id,
+    dedupeKey: `order-status:${order.id}:${status}`,
+    data: {
+      order_id: order.id,
+      order_number: order.order_number,
+      status,
+    },
+  });
+};
+
+const notifyNewOrderForAdmin = async (order, paymentMethod) => {
+  await notifyAdmin({
+    title: 'Có đơn hàng mới',
+    message: `Đơn hàng ${order.order_number} vừa được tạo.`,
+    type: 'new_order',
+    entityType: 'order',
+    entityId: order.id,
+    dedupeKey: `new-order:${order.id}`,
+    data: {
+      order_id: order.id,
+      order_number: order.order_number,
+      payment_method: paymentMethod,
+      total_amount: Number(order.total_amount || 0),
+    },
+  });
+};
+
+const ensureBankTransferPaymentCompleted = async (order, nextStatus) => {
+  if (order.purchase_channel !== 'online' || ['pending', 'cancelled'].includes(nextStatus)) {
+    return;
+  }
+
+  const data = await getPaymentByOrderId(order.id);
+  const payment = data?.payment;
+
+  if (payment?.payment_method === 'bank_transfer' && payment.status !== 'completed') {
+    throw statusConflict('Bank transfer payment must be completed before confirming order');
+  }
+};
+
 export const checkout = async (req, res, next) => {
   try {
     const purchaseChannel = req.body.purchase_channel || 'online';
@@ -530,6 +612,7 @@ export const checkout = async (req, res, next) => {
     }
 
     const freshOrder = await attachPaymentToOrder(await findOrderByIdOrNumber(order.id));
+    await notifyNewOrderForAdmin(freshOrder, paymentMethod);
 
     return res.status(201).json({
       order: freshOrder,
@@ -657,6 +740,7 @@ export const retryOrderPayment = async (req, res, next) => {
       user_id: order.user_id,
       amount: Number(order.total_amount),
       payment_method: paymentMethod,
+      purchase_channel: order.purchase_channel,
       order_number: order.order_number,
       bank_code: req.body.bank_code,
       locale: req.body.locale,
@@ -702,6 +786,9 @@ export const updateOrderStatus = async (req, res, next) => {
       throw statusConflict(`Cannot change order status from ${order.status} to ${status}`);
     }
 
+    await ensureBankTransferPaymentCompleted(order, status);
+
+    const previousStatus = order.status;
     await markOrderStatus(order, status, note || `Status changed to ${status}`, transaction);
 
     if (status === 'delivered') {
@@ -721,6 +808,10 @@ export const updateOrderStatus = async (req, res, next) => {
           console.warn(`COD payment completion failed for order ${order.id}:`, error.message);
         }
       }
+    }
+
+    if (previousStatus !== status) {
+      await notifyOrderStatusChanged(order, status);
     }
 
     const freshOrder = await findOrderByIdOrNumber(order.id);

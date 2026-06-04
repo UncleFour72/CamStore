@@ -3,9 +3,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
-import { startBankTransferPaymentJob } from './jobs/bankTransferJob.js';
+import { ensureDatabaseExists } from './config/database.js';
 import { sequelize } from './models/index.js';
-import orderRoutes from './routes/orderRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -13,7 +13,7 @@ dotenv.config({
 dotenv.config();
 
 const app = express();
-const port = Number(process.env.PORT || process.env.ORDER_SERVICE_PORT || 3004);
+const port = Number(process.env.PORT || process.env.NOTIFICATION_SERVICE_PORT || 3008);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000')
   .split(',')
@@ -38,13 +38,13 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.get('/health', (req, res) => {
   res.json({
-    service: 'order-service',
+    service: 'notification-service',
     status: 'ok',
     timestamp: new Date().toISOString(),
   });
 });
 
-app.use('/api', orderRoutes);
+app.use('/api', notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
@@ -77,6 +77,7 @@ app.use((error, req, res, next) => {
 });
 
 const start = async () => {
+  await ensureDatabaseExists();
   await sequelize.authenticate();
 
   if (process.env.DB_SYNC !== 'false') {
@@ -84,13 +85,11 @@ const start = async () => {
   }
 
   app.listen(port, () => {
-    console.log(`Order Service running on port ${port}`);
+    console.log(`Notification Service running on port ${port}`);
   });
-
-  startBankTransferPaymentJob();
 };
 
 start().catch((error) => {
-  console.error('Failed to start Order Service:', error);
+  console.error('Failed to start Notification Service:', error);
   process.exit(1);
 });

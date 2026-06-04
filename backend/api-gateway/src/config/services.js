@@ -16,6 +16,7 @@ export const services = {
   payment: normalizeBaseUrl(process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005'),
   review: normalizeBaseUrl(process.env.REVIEW_SERVICE_URL || 'http://localhost:3006'),
   blog: normalizeBaseUrl(process.env.BLOG_SERVICE_URL || 'http://localhost:3007'),
+  notification: normalizeBaseUrl(process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3008'),
 };
 
 export const gatewayConfig = {

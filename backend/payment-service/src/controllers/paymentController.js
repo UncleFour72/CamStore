@@ -4,7 +4,7 @@ import { createMomoPaymentRequest, isMomoSuccess, verifyMomoCallback } from '../
 import { createVnpayPaymentUrl, isVnpaySuccess, verifyVnpayCallback } from '../utils/vnpay.js';
 
 const PAYMENT_METHODS = ['cod', 'vnpay', 'momo', 'cash', 'bank_transfer', 'pos_card'];
-const DIRECT_COMPLETED_METHODS = ['cash', 'bank_transfer', 'pos_card'];
+const DIRECT_COMPLETED_METHODS = ['cash', 'pos_card'];
 const ONLINE_GATEWAY_METHODS = ['vnpay', 'momo'];
 
 const isPlaceholder = (value) => !value || String(value).startsWith('your_');
@@ -58,6 +58,10 @@ const toPositiveInt = (value, fallback = null) => {
 const toMoney = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : null;
+};
+
+const isDirectCompletedPayment = (method, purchaseChannel) => {
+  return DIRECT_COMPLETED_METHODS.includes(method) || (method === 'bank_transfer' && purchaseChannel === 'instore');
 };
 
 const getClientIp = (req) => {
@@ -250,7 +254,7 @@ export const createPaymentRecord = async (req, res, next) => {
 
     await transaction.commit();
 
-    if (DIRECT_COMPLETED_METHODS.includes(method)) {
+    if (isDirectCompletedPayment(method, req.body.purchase_channel)) {
       payment.appendCallbackData({
         provider: method,
         status: 'manual_completed',
@@ -296,10 +300,11 @@ export const retryPaymentRecord = async (req, res, next) => {
   try {
     const orderId = toPositiveInt(req.params.orderId);
     const method = req.body.payment_method;
+    const retryableMethods = ['cod', 'bank_transfer', ...ONLINE_GATEWAY_METHODS];
 
-    if (!orderId || !ONLINE_GATEWAY_METHODS.concat('cod').includes(method)) {
+    if (!orderId || !retryableMethods.includes(method)) {
       return res.status(400).json({
-        message: `order_id and payment_method (${['cod', ...ONLINE_GATEWAY_METHODS].join(', ')}) are required`,
+        message: `order_id and payment_method (${retryableMethods.join(', ')}) are required`,
       });
     }
 
@@ -328,6 +333,20 @@ export const retryPaymentRecord = async (req, res, next) => {
         callback_data: payment.callback_data,
       });
       await updateOrderStatus(orderId, 'confirmed', 'Customer changed payment method to COD');
+    } else if (method === 'bank_transfer') {
+      payment.appendCallbackData({
+        provider: 'bank_transfer',
+        status: payment.payment_method === method ? 'retry_requested' : 'method_changed',
+        payload: { order_id: orderId },
+      });
+      await payment.update({
+        payment_method: 'bank_transfer',
+        status: 'pending',
+        payment_url: null,
+        transaction_id: null,
+        paid_at: null,
+        callback_data: payment.callback_data,
+      });
     } else {
       payment.appendCallbackData({
         provider: method,
@@ -437,6 +456,130 @@ export const getPaymentByOrderId = async (req, res, next) => {
     }
 
     return res.json({ payment });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const confirmBankTransferPayment = async (req, res, next) => {
+  try {
+    const payment = await Payment.findByPk(req.params.id, {
+      include: [{ model: Refund, as: 'refunds' }],
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    if (payment.payment_method !== 'bank_transfer') {
+      return res.status(409).json({ message: 'Only bank transfer payments can be manually confirmed' });
+    }
+
+    if (payment.status === 'completed') {
+      return res.json({ payment, changed: false });
+    }
+
+    if (payment.status === 'refunded') {
+      return res.status(409).json({ message: 'Payment is already completed or refunded' });
+    }
+
+    const previous = {
+      status: payment.status,
+      transaction_id: payment.transaction_id,
+      paid_at: payment.paid_at,
+      payment_url: payment.payment_url,
+      callback_data: payment.callback_data,
+    };
+
+    payment.appendCallbackData({
+      provider: 'bank_transfer',
+      status: 'manual_confirmed',
+      payload: {
+        note: req.body.note || null,
+        reference: req.body.reference || null,
+        confirmed_by: req.auth?.id || null,
+      },
+    });
+
+    await payment.update({
+      status: 'completed',
+      transaction_id: req.body.transaction_id || req.body.reference || `BANK-${payment.id}-${Date.now()}`,
+      paid_at: new Date(),
+      payment_url: null,
+      callback_data: payment.callback_data,
+    });
+
+    try {
+      await updateOrderStatus(payment.order_id, 'confirmed', 'Bank transfer payment confirmed by admin');
+    } catch (error) {
+      payment.appendCallbackData({
+        provider: 'bank_transfer',
+        status: 'manual_confirm_failed',
+        reason: error.message,
+      });
+      await payment.update({
+        ...previous,
+        callback_data: payment.callback_data,
+      });
+      throw error;
+    }
+
+    const freshPayment = await Payment.findByPk(payment.id, {
+      include: [{ model: Refund, as: 'refunds' }],
+    });
+
+    return res.json({ payment: freshPayment, changed: true });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const expireBankTransferPayment = async (req, res, next) => {
+  try {
+    const orderId = toPositiveInt(req.params.orderId);
+
+    if (!orderId) {
+      return res.status(400).json({ message: 'order_id must be a positive integer' });
+    }
+
+    const payment = await Payment.findOne({
+      where: { order_id: orderId },
+      include: [{ model: Refund, as: 'refunds' }],
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    if (payment.payment_method !== 'bank_transfer') {
+      return res.json({ payment, changed: false, reason: 'payment_method_not_bank_transfer' });
+    }
+
+    if (['completed', 'refunded'].includes(payment.status)) {
+      return res.json({ payment, changed: false, reason: `payment_${payment.status}` });
+    }
+
+    if (payment.status === 'failed') {
+      return res.json({ payment, changed: false, reason: 'payment_already_failed' });
+    }
+
+    payment.appendCallbackData({
+      provider: 'bank_transfer',
+      status: 'expired',
+      reason: req.body.reason || null,
+    });
+
+    await payment.update({
+      status: 'failed',
+      payment_url: null,
+      callback_data: payment.callback_data,
+    });
+
+    const freshPayment = await Payment.findByPk(payment.id, {
+      include: [{ model: Refund, as: 'refunds' }],
+    });
+
+    return res.json({ payment: freshPayment, changed: true });
   } catch (error) {
     return next(error);
   }

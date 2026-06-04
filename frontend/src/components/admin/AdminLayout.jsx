@@ -1,6 +1,5 @@
 import {
   Aperture,
-  Bell,
   CreditCard,
   FileText,
   LayoutGrid,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import NotificationBell from '../common/NotificationBell.jsx';
 import { logoutUser } from '../../store/slices/authSlice.js';
 
 const adminNav = [
@@ -36,7 +36,7 @@ const searchPlaceholders = {
   '/admin/reviews': 'Tìm kiếm đánh giá...',
   '/admin/payments': 'Tìm kiếm thanh toán...',
   '/admin/orders': 'Tìm kiếm mã đơn, khách hàng...',
-  '/admin/customers': 'Tìm kiếm hệ thống...',
+  '/admin/customers': 'Tìm kiếm khách hàng...',
 };
 
 export default function AdminLayout() {
@@ -44,8 +44,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const searchPlaceholder =
-    searchPlaceholders[location.pathname] || 'Tìm kiếm hệ thống...';
+  const searchPlaceholder = searchPlaceholders[location.pathname] || 'Tìm kiếm hệ thống...';
   const userName =
     user?.name ||
     user?.full_name ||
@@ -89,7 +88,6 @@ export default function AdminLayout() {
             );
           })}
         </nav>
-
       </aside>
 
       <div className="admin-main-shell">
@@ -99,10 +97,7 @@ export default function AdminLayout() {
             <input placeholder={searchPlaceholder} />
           </label>
           <div className="admin-top-actions">
-            <button type="button" aria-label="Thông báo">
-              <Bell size={24} />
-              <span />
-            </button>
+            <NotificationBell scope="admin" />
             <div className="admin-top-divider" />
             <button
               type="button"

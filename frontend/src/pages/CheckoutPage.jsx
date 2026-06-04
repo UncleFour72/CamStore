@@ -12,6 +12,7 @@ import { checkoutOrder, clearOrderError } from '../store/slices/orderSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
 const paymentMethods = [
+  { id: 'bank_transfer', label: 'Chuyển khoản ngân hàng', icon: Building2 },
   { id: 'vnpay', label: 'VNPay / Ngân hàng', icon: Building2 },
   { id: 'momo', label: 'Ví điện tử MoMo', icon: QrCode },
   { id: 'cod', label: 'Thanh toán khi nhận hàng (COD)', icon: Banknote },

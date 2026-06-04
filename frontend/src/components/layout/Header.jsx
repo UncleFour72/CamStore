@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import NotificationBell from '../common/NotificationBell.jsx';
 import { storefrontCategories } from '../../data/assets.js';
 import { useCart } from '../../hooks/useCart.js';
 import { logoutUser } from '../../store/slices/authSlice.js';
@@ -162,6 +163,8 @@ export default function Header() {
             <ShoppingCart size={21} />
             {itemCount > 0 && <span className="cart-count">{itemCount}</span>}
           </Link>
+
+          {isAuthenticated && <NotificationBell />}
 
           {isAuthenticated ? (
             <div className="account-menu">

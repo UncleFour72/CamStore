@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  confirmBankTransferPayment,
   completeMockPayment,
   completeCodPaymentForDelivery,
   createPaymentRecord,
@@ -11,6 +12,7 @@ import {
   handleMomoReturn,
   handleVnpayIpn,
   handleVnpayReturn,
+  expireBankTransferPayment,
   retryPaymentRecord,
   updateRefundStatus,
 } from '../controllers/paymentController.js';
@@ -36,6 +38,8 @@ router.get('/payments', authenticate, requireAdmin, getPayments);
 router.get('/payments/order/:orderId', optionalAuthenticate, requireInternalOrAdmin, getPaymentByOrderId);
 router.patch('/payments/order/:orderId/retry', requireInternal, retryPaymentRecord);
 router.patch('/payments/order/:orderId/complete-cod', requireInternal, completeCodPaymentForDelivery);
+router.patch('/payments/order/:orderId/expire-bank-transfer', requireInternal, expireBankTransferPayment);
+router.patch('/payments/:id/confirm-bank-transfer', authenticate, requireAdmin, confirmBankTransferPayment);
 router.get('/payments/:id', optionalAuthenticate, requireInternalOrAdmin, getPaymentById);
 router.post('/payments/:id/refunds', optionalAuthenticate, requireInternalOrAdmin, createRefund);
 router.patch('/payments/:id/refunds/:refundId', authenticate, requireAdmin, updateRefundStatus);
