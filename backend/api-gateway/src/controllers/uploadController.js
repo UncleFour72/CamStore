@@ -132,7 +132,7 @@ export const uploadImage = async (req, res, next) => {
     if (!configureCloudinary()) {
       if (!isLocalUploadEnabled()) {
         return res.status(503).json({
-          message: 'Cloudinary is not configured. Please check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.',
+          message: 'Cloudinary chưa được cấu hình. Vui lòng kiểm tra CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET.',
         });
       }
 

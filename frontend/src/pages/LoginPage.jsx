@@ -42,18 +42,20 @@ export default function LoginPage() {
           <span>CAMSTORE</span>
         </Link>
 
-        <img className="auth-visual-image" src={assets.lensDark} alt="Ống kính máy ảnh" />
+        <img className="auth-visual-image" src={assets.lensDark} alt="Ống kính máy ảnh chuyên nghiệp" />
 
         <div className="auth-visual-copy">
           <h1>Ghi lại khoảnh khắc, kiến tạo nghệ thuật.</h1>
-          <p>Đăng nhập để quản lý hồ sơ, địa chỉ giao hàng và lịch sử mua sắm tại CamStore.</p>
+          <p>
+            Tham gia cộng đồng nhiếp ảnh chuyên nghiệp và sở hữu những thiết bị quang học hàng đầu thế giới ngay hôm nay.
+          </p>
         </div>
 
         <div className="auth-visual-links" aria-label="Danh mục thiết bị">
-          <span>Ống kính</span>
-          <span>Thân máy</span>
-          <span>Phụ kiện</span>
-          <span>Thiết bị studio</span>
+          <span>Lenses</span>
+          <span>Bodies</span>
+          <span>Accessories</span>
+          <span>Studio Gear</span>
         </div>
       </section>
 
@@ -61,7 +63,7 @@ export default function LoginPage() {
         <div className="auth-panel-modern">
           <div className="auth-heading">
             <h1>Chào mừng trở lại</h1>
-            <p>Nhập email và mật khẩu để truy cập tài khoản của bạn.</p>
+            <p>Vui lòng nhập thông tin để truy cập tài khoản của bạn.</p>
           </div>
 
           <div className="auth-tabs">
@@ -73,7 +75,7 @@ export default function LoginPage() {
 
           <form className="auth-form-modern" onSubmit={handleSubmit}>
             <label>
-              <span>Email</span>
+              <span>Email hoặc Số điện thoại</span>
               <input
                 type="email"
                 name="email"
@@ -86,20 +88,23 @@ export default function LoginPage() {
             </label>
 
             <label>
-              <span>Mật khẩu</span>
+              <span>
+                Mật khẩu
+                <Link to="/login">Quên mật khẩu?</Link>
+              </span>
               <div className="auth-password-field">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={form.password}
                   onChange={updateField}
-                  placeholder="********"
+                  placeholder="••••••••"
                   autoComplete="current-password"
                   required
                 />
                 <button
                   type="button"
-                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-label="Hiện mật khẩu"
                   onClick={() => setShowPassword((value) => !value)}
                 >
                   <Eye size={20} />
@@ -111,7 +116,7 @@ export default function LoginPage() {
 
             <label className="auth-remember">
               <input type="checkbox" />
-              <span>Duy trì đăng nhập trên thiết bị này</span>
+              <span>Duy trì đăng nhập trong 30 ngày</span>
             </label>
 
             <button className="auth-submit" type="submit" disabled={isLoading}>
@@ -119,15 +124,44 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <div className="auth-divider">
+            <span>HOẶC TIẾP TỤC VỚI</span>
+          </div>
+
+          <div className="auth-social-grid">
+            <button type="button">
+              <span className="google-mark">G</span>
+              Google
+            </button>
+            <button type="button">
+              <span className="facebook-mark">f</span>
+              Facebook
+            </button>
+          </div>
+
+          <p className="auth-terms">
+            Bằng việc tiếp tục, bạn đồng ý với <Link to="/services/warranty">Điều khoản dịch vụ</Link> và{' '}
+            <Link to="/services/warranty">Chính sách bảo mật</Link> của CamStore.
+          </p>
+
           <div className="auth-security">
             <span>
               <ShieldCheck size={16} /> SSL SECURE
             </span>
             <span>
-              <LockKeyhole size={16} /> JWT AUTH
+              <LockKeyhole size={16} /> AES-256 AUTH
             </span>
           </div>
         </div>
+
+        <footer className="auth-footer">
+          <span>© 2024 CamStore. Đẳng cấp nhiếp ảnh chuyên nghiệp.</span>
+          <nav aria-label="Liên kết hỗ trợ">
+            <Link to="/profile">Về chúng tôi</Link>
+            <Link to="/profile">Liên hệ</Link>
+            <Link to="/services/warranty">Hỗ trợ</Link>
+          </nav>
+        </footer>
       </section>
     </main>
   );

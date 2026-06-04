@@ -10,7 +10,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { assets } from '../../data/catalog.js';
+import { assets } from '../../data/assets.js';
 import { formatPrice } from '../../utils/helpers.js';
 
 const cleaningSteps = [

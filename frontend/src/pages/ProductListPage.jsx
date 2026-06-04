@@ -8,9 +8,9 @@ import { fetchBrands, fetchProducts } from '../store/slices/productSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
 const conditions = [
-  { label: 'Moi 100%', value: 'New 100%' },
+  { label: 'Mới 100%', value: 'New 100%' },
   { label: 'Like New', value: 'Like New' },
-  { label: 'Cu', value: 'Used' },
+  { label: 'Cũ', value: 'Used' },
 ];
 const pageSize = 8;
 const defaultPriceLimit = 250000000;

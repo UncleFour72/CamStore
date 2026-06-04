@@ -136,7 +136,7 @@ export default function ProductDetailPage() {
     }
 
     try {
-      await addItem(product.productId || product.apiId, 1).unwrap();
+      await addItem(product.productId || product.apiId || product.id, 1).unwrap();
 
       if (goToCheckout) {
         navigate('/checkout');
@@ -146,7 +146,7 @@ export default function ProductDetailPage() {
       setCartMessage('Đã thêm sản phẩm vào giỏ hàng.');
     } catch (err) {
       setCartMessage(
-        typeof err === 'string' ? err : err?.message || 'Chưa thể thêm sản phẩm vào giỏ hàng.'
+        typeof err === 'string' ? err : err?.message || 'Không thể thêm sản phẩm vào giỏ hàng.'
       );
     }
   }
@@ -235,7 +235,7 @@ export default function ProductDetailPage() {
             <p className="pdp-description">{product.description || product.tagline}</p>
 
             <div className="pdp-combos">
-          <span>Lựa chọn combo</span>
+              <span>Lựa chọn combo</span>
               <label className={combo === 'body' ? 'active' : ''}>
                 <input
                   type="radio"
@@ -298,7 +298,7 @@ export default function ProductDetailPage() {
         <a className="active" href="#description">Mô tả chi tiết</a>
         <a href="#specs">Thông số kỹ thuật</a>
         <a href="#reviews">Đánh giá khách hàng</a>
-        <a href="#accessories">Sản phẩm liên quan</a>
+        <a href="#accessories">Phụ kiện tương thích</a>
       </section>
 
       <section className="container pdp-detail-block" id="description">

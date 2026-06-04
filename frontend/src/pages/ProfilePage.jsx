@@ -1,5 +1,6 @@
 import {
   CheckCircle2,
+  ImagePlus,
   KeyRound,
   MapPin,
   ShieldCheck,
@@ -129,7 +130,7 @@ export default function ProfilePage() {
 
     try {
       await dispatch(updateProfile(profileForm)).unwrap();
-      setProfileMessage('Ho so da duoc cap nhat.');
+      setProfileMessage('Hồ sơ đã được cập nhật.');
     } catch {
       // Redux state already carries the visible error.
     }
@@ -143,7 +144,7 @@ export default function ProfilePage() {
       return;
     }
 
-    setAvatarStatus('Dang upload anh...');
+    setAvatarStatus('Đang upload ảnh...');
 
     try {
       const uploaded = await uploadImage(file, 'camstore/avatars');
@@ -151,9 +152,9 @@ export default function ProfilePage() {
         ...current,
         avatar_url: uploaded.url,
       }));
-      setAvatarStatus('Anh da san sang, bam Luu ho so de cap nhat.');
+      setAvatarStatus('Ảnh đã sẵn sàng, bấm Lưu hồ sơ để cập nhật.');
     } catch (error) {
-      setAvatarStatus(error.response?.data?.message || 'Khong the upload anh.');
+      setAvatarStatus(error.response?.data?.message || 'Không thể upload ảnh.');
     } finally {
       input.value = '';
     }
@@ -166,10 +167,10 @@ export default function ProfilePage() {
     try {
       if (editingAddressId) {
         await dispatch(updateAddress({ id: editingAddressId, data: addressForm })).unwrap();
-        setAddressMessage('Dia chi da duoc cap nhat.');
+        setAddressMessage('Địa chỉ đã được cập nhật.');
       } else {
         await dispatch(createAddress(addressForm)).unwrap();
-        setAddressMessage('Dia chi moi da duoc luu.');
+        setAddressMessage('Địa chỉ mới đã được lưu.');
       }
 
       resetAddressForm();
@@ -198,7 +199,7 @@ export default function ProfilePage() {
     try {
       await dispatch(deleteAddress(addressId)).unwrap();
       await dispatch(fetchAddresses()).unwrap();
-      setAddressMessage('Dia chi da duoc xoa.');
+      setAddressMessage('Địa chỉ đã được xóa.');
       resetAddressForm();
     } catch {
       // Redux state already carries the visible error.
@@ -210,7 +211,7 @@ export default function ProfilePage() {
 
     try {
       await dispatch(setDefaultAddress(addressId)).unwrap();
-      setAddressMessage('Da dat dia chi mac dinh.');
+      setAddressMessage('Đã đặt địa chỉ mặc định.');
     } catch {
       // Redux state already carries the visible error.
     }
@@ -223,7 +224,7 @@ export default function ProfilePage() {
     try {
       await dispatch(changePassword(passwordForm)).unwrap();
       setPasswordForm(emptyPasswordForm);
-      setPasswordMessage('Mat khau da duoc doi thanh cong.');
+      setPasswordMessage('Mật khẩu đã được đổi thành công.');
     } catch {
       // Redux state already carries the visible error.
     }
@@ -240,16 +241,16 @@ export default function ProfilePage() {
               <UserRound size={38} />
             )}
           </div>
-          <h1>{displayName || 'Khach hang CamStore'}</h1>
-          <p>{user?.email || 'Tai khoan khach hang'}</p>
-          <span className="status-pill">{user?.role === 'admin' ? 'Quan tri vien' : 'Khach hang'}</span>
+          <h1>{displayName || 'Khách hàng CamStore'}</h1>
+          <p>{user?.email || 'Tài khoản khách hàng'}</p>
+          <span className="status-pill">{user?.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'}</span>
           <div className="profile-actions">
             <Link className="button secondary" to="/orders">
-              Xem lich su don
+              Xem lịch sử đơn
             </Link>
             {user?.role === 'admin' && (
               <Link className="button primary" to="/admin">
-                Vao admin
+                Vào admin
               </Link>
             )}
           </div>
@@ -259,12 +260,12 @@ export default function ProfilePage() {
           <section className="panel soft-panel">
             <div className="section-title-row">
               <UserRound size={24} />
-              <h2>Thong tin ca nhan</h2>
+              <h2>Thông tin cá nhân</h2>
             </div>
 
             <form className="form-grid" onSubmit={handleProfileSubmit}>
               <label>
-                <span>Ho</span>
+                <span>Họ</span>
                 <input
                   type="text"
                   name="first_name"
@@ -274,7 +275,7 @@ export default function ProfilePage() {
                 />
               </label>
               <label>
-                <span>Ten</span>
+                <span>Tên</span>
                 <input
                   type="text"
                   name="last_name"
@@ -284,7 +285,7 @@ export default function ProfilePage() {
                 />
               </label>
               <label>
-                <span>So dien thoai</span>
+                <span>Số điện thoại</span>
                 <input type="tel" name="phone" value={profileForm.phone} onChange={updateProfileField} />
               </label>
               <label>
@@ -292,7 +293,7 @@ export default function ProfilePage() {
                 <input type="email" value={user?.email || ''} disabled />
               </label>
               <label className="span-2">
-                <span>Anh dai dien</span>
+                <span>Ảnh đại diện</span>
                 <input type="file" accept="image/*" onChange={handleAvatarUpload} />
               </label>
 
@@ -302,7 +303,7 @@ export default function ProfilePage() {
 
               <div className="profile-form-actions span-2">
                 <button className="button primary" type="submit" disabled={authLoading}>
-                  {authLoading ? 'Dang luu...' : 'Luu ho so'}
+                  {authLoading ? 'Đang lưu...' : 'Lưu hồ sơ'}
                 </button>
               </div>
             </form>
@@ -311,15 +312,15 @@ export default function ProfilePage() {
           <section className="panel soft-panel">
             <div className="section-title-row">
               <MapPin size={24} />
-              <h2>Dia chi giao hang</h2>
+              <h2>Địa chỉ giao hàng</h2>
             </div>
 
             {defaultAddress ? (
               <p>
-                <strong>Mac dinh:</strong> {formatAddress(defaultAddress)}
+                <strong>Mặc định:</strong> {formatAddress(defaultAddress)}
               </p>
             ) : (
-              <p>Chua co dia chi giao hang. Hay them dia chi dau tien de checkout nhanh hon.</p>
+              <p>Chưa có địa chỉ giao hàng. Hãy thêm địa chỉ đầu tiên để checkout nhanh hơn.</p>
             )}
 
             <div className="address-list">
@@ -332,14 +333,14 @@ export default function ProfilePage() {
                     </div>
                     {address.is_default && (
                       <span className="status-pill">
-                        <CheckCircle2 size={14} /> Mac dinh
+                        <CheckCircle2 size={14} /> Mặc định
                       </span>
                     )}
                   </div>
                   <p>{formatAddress(address)}</p>
                   <div className="address-actions">
                     <button className="button secondary" type="button" onClick={() => handleEditAddress(address)}>
-                      Sua
+                      Sửa
                     </button>
                     {!address.is_default && (
                       <button
@@ -348,7 +349,7 @@ export default function ProfilePage() {
                         onClick={() => handleSetDefaultAddress(address.id)}
                         disabled={addressLoading}
                       >
-                        Dat mac dinh
+                        Đặt mặc định
                       </button>
                     )}
                     <button
@@ -357,7 +358,7 @@ export default function ProfilePage() {
                       onClick={() => handleDeleteAddress(address.id)}
                       disabled={addressLoading}
                     >
-                      <Trash2 size={15} /> Xoa
+                      <Trash2 size={15} /> Xóa
                     </button>
                   </div>
                 </article>
@@ -366,7 +367,7 @@ export default function ProfilePage() {
 
             <form className="form-grid" onSubmit={handleAddressSubmit}>
               <label>
-                <span>Nguoi nhan</span>
+                <span>Người nhận</span>
                 <input
                   type="text"
                   name="full_name"
@@ -376,11 +377,11 @@ export default function ProfilePage() {
                 />
               </label>
               <label>
-                <span>So dien thoai</span>
+                <span>Số điện thoại</span>
                 <input type="tel" name="phone" value={addressForm.phone} onChange={updateAddressField} required />
               </label>
               <label className="span-2">
-                <span>Dia chi</span>
+                <span>Địa chỉ</span>
                 <input
                   type="text"
                   name="address_line"
@@ -390,11 +391,11 @@ export default function ProfilePage() {
                 />
               </label>
               <label>
-                <span>Phuong/Xa</span>
+                <span>Phường/Xã</span>
                 <input type="text" name="ward" value={addressForm.ward} onChange={updateAddressField} required />
               </label>
               <label>
-                <span>Quan/Huyen</span>
+                <span>Quận/Huyện</span>
                 <input
                   type="text"
                   name="district"
@@ -404,7 +405,7 @@ export default function ProfilePage() {
                 />
               </label>
               <label>
-                <span>Tinh/Thanh pho</span>
+                <span>Tỉnh/Thành phố</span>
                 <input type="text" name="city" value={addressForm.city} onChange={updateAddressField} required />
               </label>
               <label className="checkbox-line">
@@ -414,7 +415,7 @@ export default function ProfilePage() {
                   checked={addressForm.is_default}
                   onChange={updateAddressField}
                 />
-                <span>Dat lam dia chi mac dinh</span>
+                <span>Đặt làm địa chỉ mặc định</span>
               </label>
 
               {addressMessage && <p className="form-success span-2">{addressMessage}</p>}
@@ -422,11 +423,11 @@ export default function ProfilePage() {
 
               <div className="profile-form-actions span-2">
                 <button className="button primary" type="submit" disabled={addressLoading}>
-                  {addressLoading ? 'Dang luu...' : editingAddressId ? 'Cap nhat dia chi' : 'Them dia chi'}
+                  {addressLoading ? 'Đang lưu...' : editingAddressId ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ'}
                 </button>
                 {editingAddressId && (
                   <button className="button secondary" type="button" onClick={resetAddressForm}>
-                    Huy sua
+                    Hủy sửa
                   </button>
                 )}
               </div>
@@ -436,11 +437,11 @@ export default function ProfilePage() {
           <section className="panel soft-panel">
             <div className="section-title-row">
               <KeyRound size={24} />
-              <h2>Bao mat tai khoan</h2>
+              <h2>Bảo mật tài khoản</h2>
             </div>
             <form className="form-grid" onSubmit={handlePasswordSubmit}>
               <label>
-                <span>Mat khau hien tai</span>
+                <span>Mật khẩu hiện tại</span>
                 <input
                   type="password"
                   name="current_password"
@@ -451,7 +452,7 @@ export default function ProfilePage() {
                 />
               </label>
               <label>
-                <span>Mat khau moi</span>
+                <span>Mật khẩu mới</span>
                 <input
                   type="password"
                   name="new_password"
@@ -468,7 +469,7 @@ export default function ProfilePage() {
 
               <div className="profile-form-actions span-2">
                 <button className="button primary" type="submit" disabled={authLoading}>
-                  {authLoading ? 'Dang doi...' : 'Doi mat khau'}
+                  {authLoading ? 'Đang đổi...' : 'Đổi mật khẩu'}
                 </button>
               </div>
             </form>
@@ -477,9 +478,9 @@ export default function ProfilePage() {
           <section className="panel soft-panel">
             <div className="section-title-row">
               <ShieldCheck size={24} />
-              <h2>Quyen loi bao hanh</h2>
+              <h2>Quyền lợi bảo hành</h2>
             </div>
-            <p>Ho tro tra cuu bao hanh theo don hang va thong tin tai khoan CamStore.</p>
+            <p>Vệ sinh cảm biến miễn phí 2 lần/năm cho đơn hàng full-frame và hỗ trợ tra cứu bảo hành theo đơn.</p>
           </section>
         </div>
       </section>

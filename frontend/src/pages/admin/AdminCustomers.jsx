@@ -15,8 +15,26 @@ import { formatPrice } from '../../utils/helpers.js';
 
 const pageSize = 10;
 
+const tierLabels = {
+  diamond: 'VIP DIAMOND',
+  gold: 'VIP GOLD',
+  silver: 'VIP SILVER',
+  standard: 'THÀNH VIÊN',
+  member: 'THÀNH VIÊN',
+};
+
+const tierClasses = {
+  diamond: 'gold',
+  gold: 'gold',
+  silver: 'silver',
+  standard: 'member',
+  member: 'member',
+};
+
 const fallbackAvatar =
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80';
+
+const formatPercent = (value) => `${Number(value || 0).toLocaleString('vi-VN')}%`;
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -66,7 +84,7 @@ export default function AdminCustomers() {
         }
       } catch (err) {
         if (!ignore) {
-          setError(err.response?.data?.message || 'Khong tai duoc danh sach khach hang.');
+          setError(err.response?.data?.message || 'Không tải được danh sách khách hàng.');
         }
       } finally {
         if (!ignore) {
@@ -99,7 +117,7 @@ export default function AdminCustomers() {
 
     try {
       await adminService.updateUserStatus(customer.id, !customer.is_active);
-      setNotice(customer.is_active ? 'Da khoa tai khoan khach hang.' : 'Da mo lai tai khoan khach hang.');
+      setNotice(customer.is_active ? 'Đã khóa tài khoản khách hàng.' : 'Đã mở lại tài khoản khách hàng.');
       const data = await adminService.getCustomers(params);
       setCustomers(data.customers);
       setMetrics(data.metrics || {});
@@ -110,7 +128,7 @@ export default function AdminCustomers() {
         totalPages: data.totalPages,
       });
     } catch (err) {
-      setError(err.response?.data?.message || 'Khong cap nhat duoc trang thai khach hang.');
+      setError(err.response?.data?.message || 'Không cập nhật được trạng thái khách hàng.');
     } finally {
       setUpdatingId(null);
     }
@@ -120,11 +138,11 @@ export default function AdminCustomers() {
     <main className="admin-content">
       <section className="admin-page-head">
         <div>
-          <h1>Quan ly khach hang</h1>
-          <p>Theo doi thong tin va trang thai tai khoan khach hang tu user-service.</p>
+          <h1>Quản lý khách hàng</h1>
+          <p>Theo dõi thông tin, lịch sử mua hàng và trạng thái tài khoản khách hàng.</p>
         </div>
         <a className="admin-btn primary" href="/admin/orders">
-          <UserPlus size={22} /> Xem don hang
+          <UserPlus size={22} /> Xem đơn hàng
         </a>
       </section>
 
@@ -133,7 +151,7 @@ export default function AdminCustomers() {
           <label>
             <Search size={21} />
             <input
-              placeholder="Tim theo ten, email hoac so dien thoai..."
+              placeholder="Tìm theo tên, email hoặc số điện thoại..."
               value={search}
               onChange={handleSearchChange}
             />
@@ -141,9 +159,9 @@ export default function AdminCustomers() {
           <label className="admin-inline-select">
             <ShieldCheck size={20} />
             <select value={status} onChange={(event) => handleStatusChange(event.target.value)}>
-              <option value="">Tat ca trang thai</option>
-              <option value="active">Dang hoat dong</option>
-              <option value="inactive">Da khoa</option>
+              <option value="">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Đã khóa</option>
             </select>
             <ChevronDown size={18} />
           </label>
@@ -153,12 +171,12 @@ export default function AdminCustomers() {
             <Star size={24} />
           </span>
           <div>
-            <strong>Tai khoan khach hang</strong>
-            <small>Du lieu lay truc tiep tu user-service</small>
+            <strong>Khách hàng thân thiết</strong>
+            <small>VIP từ 50,000,000đ tổng chi tiêu</small>
           </div>
           <button
             type="button"
-            aria-label="Dat lai bo loc khach hang"
+            aria-label="Đặt lại bộ lọc khách hàng"
             onClick={() => {
               setSearch('');
               handleStatusChange('');
@@ -172,20 +190,21 @@ export default function AdminCustomers() {
 
       <section className="admin-table-card">
         <div className="admin-customers-table admin-table-head-row">
-          <span>Khach hang</span>
-          <span>Lien he</span>
-          <span>Tong chi tieu</span>
-          <span>Don hang</span>
-          <span>Ngay dang ky</span>
-          <span>Thao tac</span>
+          <span>Khách hàng</span>
+          <span>Liên hệ</span>
+          <span>Tổng chi tiêu</span>
+          <span>Đơn hàng</span>
+          <span>Ngày đăng ký</span>
+          <span>Thao tác</span>
         </div>
 
         {loading ? (
-          <div className="admin-empty-row">Dang tai danh sach khach hang...</div>
+          <div className="admin-empty-row">Đang tải danh sách khách hàng...</div>
         ) : customers.length === 0 ? (
-          <div className="admin-empty-row">Chua co khach hang phu hop voi bo loc.</div>
+          <div className="admin-empty-row">Chưa có khách hàng phù hợp với bộ lọc.</div>
         ) : (
           customers.map((customer) => {
+            const tier = customer.tier || 'member';
             const isUpdating = updatingId === customer.id;
 
             return (
@@ -194,14 +213,14 @@ export default function AdminCustomers() {
                   <img src={customer.avatar_url || fallbackAvatar} alt={customer.name} />
                   <div>
                     <strong>{customer.name}</strong>
-                    <span className={`customer-tier ${customer.is_active ? 'member' : 'silver'}`}>
-                      {customer.is_active ? 'DANG HOAT DONG' : 'DA KHOA'}
+                    <span className={`customer-tier ${tierClasses[tier] || 'member'}`}>
+                      {tierLabels[tier] || 'THÀNH VIÊN'}
                     </span>
                   </div>
                 </div>
                 <div>
                   <p>{customer.email}</p>
-                  <small>{customer.phone || 'Chua cap nhat so dien thoai'}</small>
+                  <small>{customer.phone || 'Chưa cập nhật số điện thoại'}</small>
                 </div>
                 <b>{formatPrice(customer.totalSpent)}</b>
                 <span className="order-count-pill">{customer.ordersCount}</span>
@@ -213,7 +232,7 @@ export default function AdminCustomers() {
                   onClick={() => toggleCustomerStatus(customer)}
                 >
                   {customer.is_active ? <ShieldOff size={18} /> : <ShieldCheck size={18} />}
-                  {customer.is_active ? 'Khoa' : 'Mo'}
+                  {customer.is_active ? 'Khóa' : 'Mở'}
                 </button>
               </div>
             );
@@ -222,7 +241,7 @@ export default function AdminCustomers() {
 
         <div className="admin-table-footer">
           <p>
-            Dang hien thi {customers.length} / {pagination.total} khach hang
+            Đang hiển thị {customers.length} / {pagination.total} khách hàng
           </p>
           <div className="admin-pagination">
             <button type="button" disabled={pagination.page <= 1} onClick={() => setPage((value) => value - 1)}>
@@ -249,24 +268,24 @@ export default function AdminCustomers() {
       <section className="customer-metric-grid">
         <article>
           <span>
-            Tai khoan dang hoat dong <BarChart3 size={24} />
+            Tỷ lệ giữ chân <BarChart3 size={24} />
           </span>
-          <strong>{Number(metrics.active_customers || 0).toLocaleString('vi-VN')}</strong>
-          <p>Khach hang co the dang nhap va mua hang</p>
+          <strong>{formatPercent(metrics.retention_rate)}</strong>
+          <p>{Number(metrics.repeat_customers || 0).toLocaleString('vi-VN')} khách quay lại mua hàng</p>
         </article>
         <article>
           <span>
-            Tai khoan da khoa <BarChart3 size={24} />
+            Giá trị đơn trung bình <BarChart3 size={24} />
           </span>
-          <strong>{Number(metrics.inactive_customers || 0).toLocaleString('vi-VN')}</strong>
-          <p>Khach hang tam thoi khong the dang nhap</p>
+          <strong>{formatPrice(metrics.average_order_value || 0)}</strong>
+          <p>Tính trên các đơn không bị hủy</p>
         </article>
         <article>
           <span>
-            Tong khach hang <UserPlus size={24} />
+            Tổng khách hàng <UserPlus size={24} />
           </span>
           <strong>{Number(metrics.total_customers || pagination.total || 0).toLocaleString('vi-VN')}</strong>
-          <p>Du lieu lay tu bang users</p>
+          <p>{Number(metrics.customers_with_orders || 0).toLocaleString('vi-VN')} khách đã phát sinh đơn</p>
         </article>
       </section>
     </main>

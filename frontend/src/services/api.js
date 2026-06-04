@@ -21,13 +21,24 @@ const MESSAGE_MAP = {
   'Authentication token is required': 'Vui lòng đăng nhập để tiếp tục.',
   'Invalid or expired token': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   'Cart is empty': 'Giỏ hàng đang trống.',
+  'Requested quantity exceeds available stock':
+    'Số lượng yêu cầu vượt quá tồn kho hiện có. Vui lòng giảm số lượng hoặc chọn sản phẩm khác.',
   'Product not found': 'Không tìm thấy sản phẩm.',
+  'Product is not available': 'Sản phẩm hiện không còn khả dụng.',
+  'Cart not found': 'Không tìm thấy giỏ hàng.',
+  'Cart item not found': 'Sản phẩm này không còn trong giỏ hàng.',
+  'Invalid credentials': 'Email hoặc mật khẩu không đúng.',
+  'User not found': 'Không tìm thấy tài khoản.',
+  'User is inactive': 'Tài khoản đã bị khóa. Vui lòng liên hệ CamStore.',
+  'You can only cancel pending orders within 60 minutes':
+    'Bạn chỉ có thể hủy đơn đang chờ xác nhận trong vòng 60 phút sau khi đặt.',
   'product_id must be a positive integer': 'Mã sản phẩm yêu thích không hợp lệ.',
   'productId must be a positive integer': 'Mã sản phẩm yêu thích không hợp lệ.',
   'Order not found': 'Không tìm thấy đơn hàng.',
   'You cannot access this order': 'Bạn không có quyền xem đơn hàng này.',
   'You cannot cancel this order': 'Bạn không có quyền hủy đơn hàng này.',
-  'Only pending orders can be cancelled by customers': 'Chỉ có thể hủy đơn hàng đang chờ xác nhận.',
+  'Only pending orders can be cancelled': 'Chỉ đơn hàng đang chờ xác nhận mới có thể hủy.',
+  'Only pending orders can be cancelled by customers': 'Khách hàng chỉ có thể hủy đơn đang chờ xác nhận.',
   'Only pending unpaid orders can be paid or changed': 'Chỉ có thể thanh toán hoặc đổi phương thức với đơn đang chờ và chưa thanh toán.',
   'Only online orders can use online payment retry': 'Chỉ đơn online mới có thể thanh toán lại.',
   'This order has already been paid': 'Đơn hàng này đã được thanh toán.',
@@ -72,7 +83,11 @@ const normalizeErrorMessage = (error) => {
   if (message && MESSAGE_MAP[message]) {
     error.response.data.message = MESSAGE_MAP[message];
   } else if (message?.startsWith('Orders can only be cancelled within')) {
-    error.response.data.message = 'Đơn pending chỉ hủy trực tiếp trong 60 phút sau khi đặt.';
+    error.response.data.message = 'Bạn chỉ có thể hủy đơn đang chờ xác nhận trong vòng 60 phút sau khi đặt.';
+  } else if (message?.startsWith('Cannot change order status from cancelled')) {
+    error.response.data.message = 'Đơn hàng đã hủy nên không thể đổi trạng thái.';
+  } else if (message?.startsWith('Cannot change order status')) {
+    error.response.data.message = 'Không thể chuyển đơn hàng sang trạng thái này.';
   }
 
   return error;

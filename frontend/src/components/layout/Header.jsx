@@ -28,20 +28,20 @@ const navItems = storefrontCategories.map((category) => ({
 
 const serviceItems = [
   {
-    label: 'Chinh sach bao hanh',
-    description: 'Dieu kien, thoi han va quy trinh bao hanh',
+    label: 'Chính sách bảo hành',
+    description: 'Điều kiện, thời hạn và quy trình bảo hành',
     to: '/services/warranty',
     icon: ShieldCheck,
   },
   {
-    label: 'Thu cu doi moi',
-    description: 'Dinh gia thiet bi cu va nang cap body/lens',
+    label: 'Thu cũ đổi mới',
+    description: 'Định giá thiết bị cũ và nâng cấp body/lens',
     to: '/services/trade-in',
     icon: Recycle,
   },
   {
-    label: 'Ve sinh lens & may anh',
-    description: 'Cham soc cam bien, lens va than may',
+    label: 'Vệ sinh lens & máy ảnh',
+    description: 'Chăm sóc cảm biến, lens và thân máy',
     to: '/services/cleaning',
     icon: Sparkles,
   },
@@ -92,7 +92,7 @@ export default function Header() {
           CamStore
         </Link>
 
-        <nav className="flex items-center justify-center gap-[30px] max-[860px]:hidden" aria-label="Danh muc chinh">
+        <nav className="flex items-center justify-center gap-[30px] max-[860px]:hidden" aria-label="Danh mục chính">
           {navItems.map((item) => (
             <Link
               key={item.label}
@@ -120,7 +120,7 @@ export default function Header() {
               onClick={() => setIsServiceOpen((value) => !value)}
               aria-expanded={isServiceOpen}
             >
-              Dich vu <ChevronDown size={14} />
+              Dịch vụ <ChevronDown size={14} />
             </button>
             {isServiceOpen && (
               <div className="service-dropdown">
@@ -157,7 +157,7 @@ export default function Header() {
           <Link
             className="cart-button relative inline-flex h-[42px] w-[42px] items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-soft"
             to="/cart"
-            aria-label="Gio hang"
+            aria-label="Giỏ hàng"
           >
             <ShoppingCart size={21} />
             {itemCount > 0 && <span className="cart-count">{itemCount}</span>}
@@ -168,7 +168,7 @@ export default function Header() {
               <button
                 className="account-trigger"
                 type="button"
-                aria-label="Tai khoan"
+                aria-label="Tài khoản"
                 aria-expanded={isAccountOpen}
                 onClick={() => setIsAccountOpen((value) => !value)}
               >
@@ -177,14 +177,14 @@ export default function Header() {
                 ) : (
                   <User size={19} />
                 )}
-                <span>{userName || 'Tai khoan'}</span>
+                <span>{userName || 'Tài khoản'}</span>
                 <ChevronDown size={15} />
               </button>
               {isAccountOpen && (
                 <div className="account-dropdown">
                   <Link to="/profile" onClick={closeMenus}>
                     <User size={18} />
-                    <span>Thong tin tai khoan</span>
+                    <span>Thông tin tài khoản</span>
                   </Link>
                   <Link to="/wishlist" onClick={closeMenus}>
                     <Heart size={18} />
@@ -192,17 +192,17 @@ export default function Header() {
                   </Link>
                   <Link to="/orders" onClick={closeMenus}>
                     <PackageCheck size={18} />
-                    <span>Don hang</span>
+                    <span>Đơn hàng</span>
                   </Link>
                   {user?.role === 'admin' && (
                     <Link to="/admin" onClick={closeMenus}>
                       <ShieldCheck size={18} />
-                      <span>Quan tri</span>
+                      <span>Quản trị</span>
                     </Link>
                   )}
                   <button type="button" onClick={handleLogout}>
                     <LogOut size={18} />
-                    <span>Dang xuat</span>
+                    <span>Đăng xuất</span>
                   </button>
                 </div>
               )}
@@ -214,12 +214,12 @@ export default function Header() {
                 to="/login"
                 onClick={closeMenus}
               >
-                Dang nhap
+                Đăng nhập
               </Link>
               <Link
                 className="hidden h-[42px] w-[42px] items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-soft max-[620px]:inline-flex"
                 to="/login"
-                aria-label="Dang nhap"
+                aria-label="Đăng nhập"
                 onClick={closeMenus}
               >
                 <User size={19} />
@@ -230,7 +230,7 @@ export default function Header() {
           <button
             className="hidden h-[42px] w-[42px] items-center justify-center rounded-full border-0 bg-transparent text-primary transition-colors hover:bg-surface-soft max-[860px]:inline-flex"
             type="button"
-            aria-label="Mo menu"
+            aria-label="Mở menu"
             onClick={() => setIsOpen((value) => !value)}
           >
             {isOpen ? <X size={22} /> : <Menu size={22} />}
@@ -239,7 +239,7 @@ export default function Header() {
       </div>
 
       {isOpen && (
-        <nav className="mx-auto hidden w-[calc(100%_-_48px)] max-w-container gap-2 pb-4 max-[860px]:grid max-[620px]:w-[calc(100%_-_32px)]" aria-label="Menu di dong">
+        <nav className="mx-auto hidden w-[calc(100%_-_48px)] max-w-container gap-2 pb-4 max-[860px]:grid max-[620px]:w-[calc(100%_-_32px)]" aria-label="Menu di động">
           {navItems.map((item) => (
             <Link
               className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
@@ -250,7 +250,7 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <span className="mobile-nav-label">Dich vu</span>
+          <span className="mobile-nav-label">Dịch vụ</span>
           {serviceItems.map((item) => (
             <Link
               className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
@@ -275,7 +275,7 @@ export default function Header() {
                 to="/profile"
                 onClick={closeMenus}
               >
-                Ho so
+                Hồ sơ
               </Link>
               <Link
                 className="flex min-h-11 items-center rounded-[10px] px-3 font-extrabold text-muted hover:bg-white hover:text-primary"
@@ -289,7 +289,7 @@ export default function Header() {
                 to="/orders"
                 onClick={closeMenus}
               >
-                Don hang
+                Đơn hàng
               </Link>
               {user?.role === 'admin' && (
                 <Link
@@ -297,7 +297,7 @@ export default function Header() {
                   to="/admin"
                   onClick={closeMenus}
                 >
-                  Quan tri
+                  Quản trị
                 </Link>
               )}
               <button
@@ -305,7 +305,7 @@ export default function Header() {
                 type="button"
                 onClick={handleLogout}
               >
-                Dang xuat
+                Đăng xuất
               </button>
             </>
           ) : (
@@ -314,7 +314,7 @@ export default function Header() {
               to="/login"
               onClick={closeMenus}
             >
-              Dang nhap
+              Đăng nhập
             </Link>
           )}
         </nav>

@@ -76,6 +76,7 @@ export const deleteProduct = async (id) => {
 
 export const getOrders = async (params = {}) => {
   const requestParams = mapPageSize(params);
+
   const data = await api.get('/orders', { params: requestParams }).then(unwrapData);
 
   return {
@@ -89,8 +90,39 @@ export const updateOrderStatus = async (id, status, note) => {
   return normalizeOrder(data.order);
 };
 
-export const getOrderStatusStats = async () => {
-  return api.get('/orders/stats/by-status').then(unwrapData);
+const normalizeCustomer = (customer) => {
+  const fullName =
+    customer.full_name ||
+    [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() ||
+    customer.email;
+
+  return {
+    ...customer,
+    name: fullName,
+    totalSpent: Number(customer.total_spent || 0),
+    ordersCount: Number(customer.orders_count || 0),
+    tier: customer.tier || 'member',
+    registeredAt: customer.created_at
+      ? new Intl.DateTimeFormat('vi-VN').format(new Date(customer.created_at))
+      : '',
+  };
+};
+
+export const getCustomers = async (params = {}) => {
+  const requestParams = mapPageSize({ role: 'customer', ...params });
+
+  const data = await api.get('/admin/customers', { params: requestParams }).then(unwrapData);
+
+  return {
+    customers: (data.customers || []).map(normalizeCustomer),
+    metrics: data.metrics || {},
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const updateUserStatus = async (id, isActive) => {
+  const data = await api.put(`/users/${id}/status`, { is_active: isActive }).then(unwrapData);
+  return normalizeCustomer(data.user);
 };
 
 export const getDashboardSummary = async (params = {}) => {
@@ -100,6 +132,80 @@ export const getDashboardSummary = async (params = {}) => {
     ...data,
     recent_orders: (data.recent_orders || []).map(normalizeOrder).filter(Boolean),
   };
+};
+
+export const getOrderStatusStats = async () => {
+  return api.get('/orders/stats/by-status').then(unwrapData);
+};
+
+export const getWarranties = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/warranties', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.warranties || []).map(normalizeWarranty),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const createWarranty = async (payload) => {
+  const data = await api.post('/warranties', payload).then(unwrapData);
+  return normalizeWarranty(data.warranty);
+};
+
+export const updateWarranty = async (id, payload) => {
+  const data = await api.put(`/warranties/${id}`, payload).then(unwrapData);
+  return normalizeWarranty(data.warranty);
+};
+
+export const getAdminBlogs = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/blogs/admin', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.posts || []).map(normalizePost).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const createBlog = async (payload) => {
+  const data = await api.post('/blogs', payload).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const updateBlog = async (id, payload) => {
+  const data = await api.put(`/blogs/${id}`, payload).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const deleteBlog = async (id) => {
+  await api.delete(`/blogs/${id}`);
+  return true;
+};
+
+export const toggleBlogPublish = async (id, isPublished) => {
+  const data = await api.patch(`/blogs/${id}/publish`, { is_published: isPublished }).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const toggleBlogFeatured = async (id, isFeatured) => {
+  const data = await api.patch(`/blogs/${id}/featured`, { is_featured: isFeatured }).then(unwrapData);
+  return normalizePost(data.post);
+};
+
+export const getAdminReviews = async (params = {}) => {
+  const requestParams = mapPageSize(params);
+  const data = await api.get('/reviews/admin', { params: requestParams }).then(unwrapData);
+
+  return {
+    items: (data.reviews || []).map(normalizeReview).filter(Boolean),
+    ...normalizePagination(data.pagination, params),
+  };
+};
+
+export const setReviewActive = async (id, isActive) => {
+  const data = await api.patch(`/reviews/${id}/status`, { is_active: isActive }).then(unwrapData);
+  return normalizeReview(data.review);
 };
 
 const normalizePayment = (payment) => {
@@ -139,120 +245,4 @@ export const createRefund = async (paymentId, payload) => {
 export const updateRefundStatus = async (paymentId, refundId, status) => {
   const data = await api.patch(`/payments/${paymentId}/refunds/${refundId}`, { status }).then(unwrapData);
   return data.refund;
-};
-
-export const getAdminReviews = async (params = {}) => {
-  const requestParams = mapPageSize(params);
-  const data = await api.get('/reviews/admin', { params: requestParams }).then(unwrapData);
-
-  return {
-    items: (data.reviews || []).map(normalizeReview).filter(Boolean),
-    ...normalizePagination(data.pagination, params),
-  };
-};
-
-export const setReviewActive = async (id, isActive) => {
-  const data = await api.patch(`/reviews/${id}/status`, { is_active: isActive }).then(unwrapData);
-  return normalizeReview(data.review);
-};
-
-export const getAdminBlogs = async (params = {}) => {
-  const requestParams = mapPageSize(params);
-  const data = await api.get('/blogs/admin', { params: requestParams }).then(unwrapData);
-
-  return {
-    items: (data.posts || []).map(normalizePost).filter(Boolean),
-    ...normalizePagination(data.pagination, params),
-  };
-};
-
-export const createBlog = async (payload) => {
-  const data = await api.post('/blogs', payload).then(unwrapData);
-  return normalizePost(data.post);
-};
-
-export const updateBlog = async (id, payload) => {
-  const data = await api.put(`/blogs/${id}`, payload).then(unwrapData);
-  return normalizePost(data.post);
-};
-
-export const deleteBlog = async (id) => {
-  await api.delete(`/blogs/${id}`);
-  return true;
-};
-
-export const toggleBlogPublish = async (id, isPublished) => {
-  const data = await api.patch(`/blogs/${id}/publish`, { is_published: isPublished }).then(unwrapData);
-  return normalizePost(data.post);
-};
-
-export const toggleBlogFeatured = async (id, isFeatured) => {
-  const data = await api.patch(`/blogs/${id}/featured`, { is_featured: isFeatured }).then(unwrapData);
-  return normalizePost(data.post);
-};
-
-export const getWarranties = async (params = {}) => {
-  const requestParams = mapPageSize(params);
-  const data = await api.get('/warranties', { params: requestParams }).then(unwrapData);
-
-  return {
-    items: (data.warranties || []).map(normalizeWarranty),
-    ...normalizePagination(data.pagination, params),
-  };
-};
-
-export const createWarranty = async (payload) => {
-  const data = await api.post('/warranties', payload).then(unwrapData);
-  return normalizeWarranty(data.warranty);
-};
-
-export const updateWarranty = async (id, payload) => {
-  const data = await api.put(`/warranties/${id}`, payload).then(unwrapData);
-  return normalizeWarranty(data.warranty);
-};
-
-const normalizeCustomer = (customer) => {
-  const fullName =
-    customer.full_name ||
-    [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() ||
-    customer.email;
-
-  return {
-    ...customer,
-    name: fullName,
-    totalSpent: Number(customer.total_spent || 0),
-    ordersCount: Number(customer.orders_count || 0),
-    tier: customer.tier || 'member',
-    registeredAt: customer.created_at
-      ? new Intl.DateTimeFormat('vi-VN').format(new Date(customer.created_at))
-      : '',
-  };
-};
-
-const buildUserMetrics = (customers = []) => {
-  const totalCustomers = customers.length;
-  const activeCustomers = customers.filter((customer) => customer.is_active).length;
-
-  return {
-    total_customers: totalCustomers,
-    active_customers: activeCustomers,
-    inactive_customers: totalCustomers - activeCustomers,
-  };
-};
-
-export const getCustomers = async (params = {}) => {
-  const requestParams = mapPageSize({ role: 'customer', ...params });
-  const data = await api.get('/users', { params: requestParams }).then(unwrapData);
-  const customers = (data.users || []).map(normalizeCustomer);
-
-  return {
-    customers,
-    metrics: buildUserMetrics(customers),
-    ...normalizePagination(data.pagination, params),
-  };
-};
-
-export const updateUserStatus = async (id, isActive) => {
-  const data = await api.put(`/users/${id}/status`, { is_active: isActive }).then(unwrapData);
-  return normalizeCustomer(data.user);
 };

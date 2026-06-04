@@ -18,7 +18,7 @@ export const fetchAddresses = createAsyncThunk(
       const data = await addressService.getAddresses();
       return data.addresses || [];
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the tai dia chi'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể tải địa chỉ'));
     }
   }
 );
@@ -30,7 +30,7 @@ export const createAddress = createAsyncThunk(
       const data = await addressService.createAddress(payload);
       return data.address;
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the tao dia chi'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể tạo địa chỉ'));
     }
   }
 );
@@ -42,7 +42,7 @@ export const updateAddress = createAsyncThunk(
       const data = await addressService.updateAddress(id, payload);
       return data.address;
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the cap nhat dia chi'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể cập nhật địa chỉ'));
     }
   }
 );
@@ -54,7 +54,7 @@ export const deleteAddress = createAsyncThunk(
       await addressService.deleteAddress(id);
       return id;
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the xoa dia chi'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể xóa địa chỉ'));
     }
   }
 );
@@ -66,7 +66,7 @@ export const setDefaultAddress = createAsyncThunk(
       const data = await addressService.setDefaultAddress(id);
       return data.address;
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the dat dia chi mac dinh'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể đặt địa chỉ mặc định'));
     }
   }
 );
@@ -86,7 +86,7 @@ const addressSlice = createSlice({
     };
     const markRejected = (state, action) => {
       state.isLoading = false;
-      state.error = action.payload || 'Khong the xu ly dia chi';
+      state.error = action.payload || 'Không thể xử lý địa chỉ';
     };
     const upsertAddress = (state, address) => {
       if (!address) {

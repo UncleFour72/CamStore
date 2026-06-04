@@ -74,7 +74,7 @@ export const registerUser = createAsyncThunk(
         token: response.token,
       };
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Dang ky that bai'));
+      return rejectWithValue(getErrorMessage(error, 'Đăng ký thất bại'));
     }
   }
 );
@@ -89,7 +89,7 @@ export const loginUser = createAsyncThunk(
         token: response.token,
       };
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Dang nhap that bai'));
+      return rejectWithValue(getErrorMessage(error, 'Đăng nhập thất bại'));
     }
   }
 );
@@ -108,7 +108,7 @@ export const getProfile = createAsyncThunk(
       return user;
     } catch (error) {
       clearSession();
-      return rejectWithValue(getErrorMessage(error, 'Khong the lay thong tin tai khoan'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể lấy thông tin tài khoản'));
     }
   }
 );
@@ -122,7 +122,7 @@ export const updateProfile = createAsyncThunk(
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       return user;
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the cap nhat ho so'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể cập nhật hồ sơ'));
     }
   }
 );
@@ -132,9 +132,9 @@ export const changePassword = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const response = await authService.changePassword(payload);
-      return response.message || 'Doi mat khau thanh cong';
+      return response.message || 'Đổi mật khẩu thành công';
     } catch (error) {
-      return rejectWithValue(getErrorMessage(error, 'Khong the doi mat khau'));
+      return rejectWithValue(getErrorMessage(error, 'Không thể đổi mật khẩu'));
     }
   }
 );
@@ -186,10 +186,10 @@ const authSlice = createSlice({
     builder
       .addCase(registerUser.pending, pending)
       .addCase(registerUser.fulfilled, applySession)
-      .addCase(registerUser.rejected, rejected('Dang ky that bai'))
+      .addCase(registerUser.rejected, rejected('Đăng ký thất bại'))
       .addCase(loginUser.pending, pending)
       .addCase(loginUser.fulfilled, applySession)
-      .addCase(loginUser.rejected, rejected('Dang nhap that bai'))
+      .addCase(loginUser.rejected, rejected('Đăng nhập thất bại'))
       .addCase(getProfile.pending, pending)
       .addCase(getProfile.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -209,12 +209,12 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload;
       })
-      .addCase(updateProfile.rejected, rejected('Khong the cap nhat ho so'))
+      .addCase(updateProfile.rejected, rejected('Không thể cập nhật hồ sơ'))
       .addCase(changePassword.pending, pending)
       .addCase(changePassword.fulfilled, (state) => {
         state.isLoading = false;
       })
-      .addCase(changePassword.rejected, rejected('Khong the doi mat khau'))
+      .addCase(changePassword.rejected, rejected('Không thể đổi mật khẩu'))
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.token = null;
