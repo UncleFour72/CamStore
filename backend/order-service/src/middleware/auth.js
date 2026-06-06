@@ -80,6 +80,7 @@ export const requireInternalOrAdmin = (req, res, next) => {
   const requestKey = req.headers['x-internal-api-key'];
 
   if (configuredKey && requestKey === configuredKey) {
+    req.isInternal = true;
     return next();
   }
 

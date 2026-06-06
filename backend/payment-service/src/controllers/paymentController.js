@@ -1,4 +1,5 @@
-import { updateOrderStatus } from '../clients/orderClient.js';
+import { cancelOrderForRefund, updateOrderStatus } from '../clients/orderClient.js';
+import { notifyUser } from '../clients/notificationClient.js';
 import { Payment, Refund, sequelize } from '../models/index.js';
 import { createMomoPaymentRequest, isMomoSuccess, verifyMomoCallback } from '../utils/momo.js';
 import { createVnpayPaymentUrl, isVnpaySuccess, verifyVnpayCallback } from '../utils/vnpay.js';
@@ -76,6 +77,8 @@ const getClientIp = (req) => {
 
 const serializePayment = (payment) => payment;
 
+const REFUND_FINAL_STATUSES = ['completed', 'rejected'];
+
 const findPaymentForCallback = async (paymentId) => {
   const id = toPositiveInt(paymentId);
 
@@ -91,6 +94,18 @@ const applyPaymentSuccess = async ({ payment, transactionId, callbackData, provi
     return payment;
   }
 
+  payment.appendCallbackData({
+    provider,
+    status: 'success',
+    payload: callbackData,
+  });
+  await payment.update({
+    status: 'completed',
+    transaction_id: transactionId || payment.transaction_id,
+    paid_at: new Date(),
+    callback_data: payment.callback_data,
+  });
+
   try {
     await updateOrderStatus(
       payment.order_id,
@@ -105,24 +120,11 @@ const applyPaymentSuccess = async ({ payment, transactionId, callbackData, provi
       payload: callbackData,
     });
     await payment.update({
-      status: 'failed',
       callback_data: payment.callback_data,
     });
 
     return payment;
   }
-
-  payment.appendCallbackData({
-    provider,
-    status: 'success',
-    payload: callbackData,
-  });
-  await payment.update({
-    status: 'completed',
-    transaction_id: transactionId || payment.transaction_id,
-    paid_at: new Date(),
-    callback_data: payment.callback_data,
-  });
 
   return payment;
 };
@@ -881,27 +883,84 @@ export const completeMockPayment = async (req, res, next) => {
 
 export const createRefund = async (req, res, next) => {
   try {
-    const payment = await Payment.findByPk(req.params.id);
+    const payment = await Payment.findByPk(req.params.id, {
+      include: [{ model: Refund, as: 'refunds' }],
+    });
 
     if (!payment) {
       return res.status(404).json({ message: 'Payment not found' });
     }
 
-    const amount = toMoney(req.body.amount);
+    if (payment.status !== 'completed') {
+      return res.status(409).json({ message: 'Only completed payments can be refunded' });
+    }
+
+    const refundStatus = req.body.status;
+
+    if (!REFUND_FINAL_STATUSES.includes(refundStatus)) {
+      return res.status(400).json({ message: 'Refund status must be completed or rejected' });
+    }
+
+    const activeRefund = payment.refunds?.find((refund) => ['pending', 'approved', 'completed'].includes(refund.status));
+
+    if (activeRefund) {
+      return res.status(409).json({ message: 'This payment already has an active refund request' });
+    }
+
+    const amount = toMoney(req.body.amount ?? payment.amount);
 
     if (amount === null || amount <= 0 || amount > Number(payment.amount)) {
       return res.status(400).json({ message: 'Invalid refund amount' });
     }
 
+    const reason = String(req.body.reason || '').trim();
+
+    if (refundStatus === 'rejected' && !reason) {
+      return res.status(400).json({ message: 'Refund rejection reason is required' });
+    }
+
+    if (refundStatus === 'completed') {
+      await cancelOrderForRefund(payment.order_id, req.body.note || 'Order cancelled before refund completion');
+    }
+
     const refund = await Refund.create({
       payment_id: payment.id,
       amount,
-      reason: req.body.reason,
-      status: req.body.status || 'pending',
+      reason: reason || 'Admin approved refund',
+      status: refundStatus,
     });
 
-    if (refund.status === 'completed') {
+    if (refundStatus === 'completed') {
       await payment.update({ status: 'refunded' });
+      await notifyUser({
+        userId: payment.user_id,
+        title: 'Đơn hàng đã được hoàn tiền',
+        message: `Đơn hàng #${payment.order_id} đã được hủy và hoàn tiền.`,
+        type: 'refund_completed',
+        entityId: payment.id,
+        data: {
+          order_id: payment.order_id,
+          payment_id: payment.id,
+          refund_id: refund.id,
+          amount,
+        },
+        dedupeKey: `refund-completed:${refund.id}`,
+      });
+    } else {
+      await notifyUser({
+        userId: payment.user_id,
+        title: 'Yêu cầu hoàn tiền bị từ chối',
+        message: `Yêu cầu hoàn tiền cho đơn hàng #${payment.order_id} bị từ chối. Lý do: ${reason}`,
+        type: 'refund_rejected',
+        entityId: payment.id,
+        data: {
+          order_id: payment.order_id,
+          payment_id: payment.id,
+          refund_id: refund.id,
+          reason,
+        },
+        dedupeKey: `refund-rejected:${refund.id}`,
+      });
     }
 
     return res.status(201).json({ refund });
@@ -920,14 +979,60 @@ export const updateRefundStatus = async (req, res, next) => {
       return res.status(404).json({ message: 'Refund not found' });
     }
 
-    if (!['pending', 'approved', 'completed', 'rejected'].includes(req.body.status)) {
-      return res.status(400).json({ message: 'Invalid refund status' });
+    if (!REFUND_FINAL_STATUSES.includes(req.body.status)) {
+      return res.status(400).json({ message: 'Refund status must be completed or rejected' });
     }
 
-    await refund.update({ status: req.body.status });
+    if (refund.payment.status !== 'completed' && req.body.status === 'completed') {
+      return res.status(409).json({ message: 'Only completed payments can be refunded' });
+    }
+
+    const reason = String(req.body.reason || refund.reason || '').trim();
+
+    if (req.body.status === 'rejected' && !reason) {
+      return res.status(400).json({ message: 'Refund rejection reason is required' });
+    }
+
+    if (req.body.status === 'completed') {
+      await cancelOrderForRefund(refund.payment.order_id, req.body.note || 'Order cancelled before refund completion');
+    }
+
+    await refund.update({
+      status: req.body.status,
+      reason: reason || refund.reason,
+    });
 
     if (req.body.status === 'completed') {
       await refund.payment.update({ status: 'refunded' });
+      await notifyUser({
+        userId: refund.payment.user_id,
+        title: 'Đơn hàng đã được hoàn tiền',
+        message: `Đơn hàng #${refund.payment.order_id} đã được hủy và hoàn tiền.`,
+        type: 'refund_completed',
+        entityId: refund.payment.id,
+        data: {
+          order_id: refund.payment.order_id,
+          payment_id: refund.payment.id,
+          refund_id: refund.id,
+          amount: Number(refund.amount || 0),
+        },
+        dedupeKey: `refund-completed:${refund.id}`,
+      });
+    } else {
+      await notifyUser({
+        userId: refund.payment.user_id,
+        title: 'Yêu cầu hoàn tiền bị từ chối',
+        message: `Yêu cầu hoàn tiền cho đơn hàng #${refund.payment.order_id} bị từ chối. Lý do: ${reason}`,
+        type: 'refund_rejected',
+        entityId: refund.payment.id,
+        data: {
+          order_id: refund.payment.order_id,
+          payment_id: refund.payment.id,
+          refund_id: refund.id,
+          reason,
+        },
+        dedupeKey: `refund-rejected:${refund.id}`,
+      });
     }
 
     return res.json({ refund });

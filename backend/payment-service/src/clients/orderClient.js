@@ -23,3 +23,15 @@ export const updateOrderStatus = async (orderId, status, note) => {
     }),
   });
 };
+
+export const cancelOrderForRefund = async (orderId, note) => {
+  return requestJson(`${ORDER_SERVICE_URL}/api/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: internalHeaders(),
+    body: JSON.stringify({
+      status: 'cancelled',
+      note,
+      reason_source: 'refund',
+    }),
+  });
+};

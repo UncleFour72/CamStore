@@ -90,6 +90,16 @@ export const updateOrderStatus = async (id, status, note) => {
   return normalizeOrder(data.order);
 };
 
+export const createInstoreOrder = async (payload) => {
+  const data = await api.post('/orders/checkout', {
+    ...payload,
+    purchase_channel: 'instore',
+    mark_paid: true,
+  }).then(unwrapData);
+
+  return normalizeOrder(data.order);
+};
+
 const normalizeCustomer = (customer) => {
   const fullName =
     customer.full_name ||

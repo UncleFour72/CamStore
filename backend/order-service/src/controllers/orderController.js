@@ -21,6 +21,7 @@ const ORDER_STATUS_TRANSITIONS = {
 };
 const ONLINE_PAYMENT_METHODS = ['cod', 'vnpay', 'momo', 'bank_transfer'];
 const INSTORE_PAYMENT_METHODS = ['cash', 'bank_transfer', 'pos_card'];
+const PREPAID_ONLINE_PAYMENT_METHODS = ['vnpay', 'momo', 'bank_transfer'];
 const CUSTOMER_CANCEL_WINDOW_MINUTES = Number(process.env.CUSTOMER_CANCEL_WINDOW_MINUTES || 60);
 const SHIPPING_FIELDS = [
   'shipping_name',
@@ -257,6 +258,15 @@ const canTransitionOrderStatus = (currentStatus, nextStatus) => {
   }
 
   return (ORDER_STATUS_TRANSITIONS[currentStatus] || []).includes(nextStatus);
+};
+
+const isInternalRefundCancellation = (req, order, nextStatus) => {
+  return (
+    req.isInternal === true &&
+    nextStatus === 'cancelled' &&
+    req.body.reason_source === 'refund' &&
+    order.status !== 'cancelled'
+  );
 };
 
 const statusConflict = (message) => {
@@ -510,7 +520,7 @@ const notifyNewOrderForAdmin = async (order, paymentMethod) => {
   });
 };
 
-const ensureBankTransferPaymentCompleted = async (order, nextStatus) => {
+const ensureOnlinePaymentCompletedBeforeFulfillment = async (order, nextStatus) => {
   if (order.purchase_channel !== 'online' || ['pending', 'cancelled'].includes(nextStatus)) {
     return;
   }
@@ -518,8 +528,12 @@ const ensureBankTransferPaymentCompleted = async (order, nextStatus) => {
   const data = await getPaymentByOrderId(order.id);
   const payment = data?.payment;
 
-  if (payment?.payment_method === 'bank_transfer' && payment.status !== 'completed') {
-    throw statusConflict('Bank transfer payment must be completed before confirming order');
+  if (!payment) {
+    throw statusConflict('Online payment record is required before updating order status');
+  }
+
+  if (PREPAID_ONLINE_PAYMENT_METHODS.includes(payment.payment_method) && payment.status !== 'completed') {
+    throw statusConflict('Online payment must be completed before updating order status');
   }
 };
 
@@ -781,12 +795,14 @@ export const updateOrderStatus = async (req, res, next) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    if (!canTransitionOrderStatus(order.status, status)) {
+    const allowRefundCancellation = isInternalRefundCancellation(req, order, status);
+
+    if (!canTransitionOrderStatus(order.status, status) && !allowRefundCancellation) {
       await transaction.rollback();
       throw statusConflict(`Cannot change order status from ${order.status} to ${status}`);
     }
 
-    await ensureBankTransferPaymentCompleted(order, status);
+    await ensureOnlinePaymentCompletedBeforeFulfillment(order, status);
 
     const previousStatus = order.status;
     await markOrderStatus(order, status, note || `Status changed to ${status}`, transaction);

@@ -5629,6 +5629,16 @@ img {
   cursor: pointer;
 }
 
+.admin-instore-row {
+  grid-template-columns: minmax(220px, 1fr) 110px 42px minmax(120px, auto);
+  align-items: center;
+}
+
+.admin-instore-row small {
+  justify-self: end;
+  font-weight: 800;
+}
+
 .admin-spec-editor small {
   color: #40505d;
 }
@@ -5933,6 +5943,13 @@ img {
   color: #7a4a00;
 }
 
+.admin-pill-button:disabled {
+  border-color: #dce5ee;
+  background: #f3f6fa;
+  color: #8a9aa8;
+  cursor: not-allowed;
+}
+
 .admin-star-rating {
   color: #c77900;
   font-weight: 900;
@@ -5942,6 +5959,73 @@ img {
 .admin-refund-stack {
   display: grid;
   gap: 8px;
+}
+
+.admin-refund-note {
+  border: 1px solid #dce5ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  background: #f7f9fc;
+}
+
+.admin-refund-note.done {
+  border-color: #bfefd8;
+  background: #eafaf1;
+}
+
+.admin-refund-note.cancel {
+  border-color: #ffd4d4;
+  background: #fff0f0;
+}
+
+.admin-refund-note small {
+  color: #40505d;
+  line-height: 1.35;
+}
+
+.admin-refund-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-refund-choice button {
+  min-height: 54px;
+  border: 1px solid #d2dfeb;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #1a2a36;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-refund-choice button.active {
+  border-color: #0077a3;
+  background: #e8f6fb;
+  color: #00658d;
+}
+
+.admin-refund-choice button.danger.active {
+  border-color: #e24b4b;
+  background: #fff1f1;
+  color: #bf1f1f;
+}
+
+.admin-refund-hint {
+  margin: 0;
+  border: 1px solid #dce5ee;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f7f9fc;
+  color: #243443;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .admin-table-footer {
@@ -6751,6 +6835,10 @@ img {
 
   .admin-blog-form,
   .admin-refund-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-refund-choice {
     grid-template-columns: 1fr;
   }
 
