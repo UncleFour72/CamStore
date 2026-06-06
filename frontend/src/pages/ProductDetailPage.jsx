@@ -212,13 +212,14 @@ export default function ProductDetailPage() {
       return;
     }
 
-    if (selectedVariant?.id === 'kit') {
-      setCartMessage('Combo Body + Lens sẽ được xử lý bằng Mua ngay để giữ đúng ảnh và giá.');
-      return;
-    }
-
     try {
-      await addItem(product.productId || product.apiId || product.id, 1).unwrap();
+      await addItem(product.productId || product.apiId || product.id, 1, {
+        key: selectedVariant?.id || 'body',
+        name: selectedVariant?.name || product.name,
+        label: selectedVariant?.label || 'Body Only',
+        price: selectedVariant?.price || product.price,
+        image: selectedVariant?.mainImage || product.image,
+      }).unwrap();
 
       if (goToCheckout) {
         navigate('/checkout');

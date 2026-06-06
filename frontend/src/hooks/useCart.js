@@ -29,7 +29,7 @@ export function useCart() {
     isLoading: cart.isLoading,
     error: cart.error,
     fetchCart: () => dispatch(fetchCart()),
-    addItem: (productId, quantity = 1) => dispatch(addToCart({ productId, quantity })),
+    addItem: (productId, quantity = 1, variant = null) => dispatch(addToCart({ productId, quantity, variant })),
     updateQuantity: (itemId, quantity) =>
       dispatch(updateCartItem({ itemId, quantity: Math.max(Number(quantity) || 1, 1) })),
     removeItem: (itemId) => dispatch(removeFromCart(itemId)),

@@ -6,6 +6,34 @@ const toPositiveInt = (value, fallback = null) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const toMoney = (value, fallback = null) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : fallback;
+};
+
+const cleanText = (value, fallback = null) => {
+  const text = String(value || '').trim();
+  return text || fallback;
+};
+
+const normalizeVariant = (body, snapshot) => {
+  const variantKey = cleanText(body.variant_key || body.variantKey, 'body').slice(0, 50);
+  const requestedPrice = toMoney(body.variant_price ?? body.variantPrice ?? body.product_price ?? body.price);
+  const variantPrice =
+    requestedPrice !== null && requestedPrice >= snapshot.price ? requestedPrice : snapshot.price;
+  const productName = cleanText(body.product_name || body.productName || body.name, snapshot.name);
+  const variantName = cleanText(body.variant_name || body.variantName, variantKey === 'kit' ? 'Body + Lens Kit' : 'Body Only');
+  const variantImage = cleanText(body.variant_image || body.variantImage || body.product_image || body.image, snapshot.image);
+
+  return {
+    key: variantKey,
+    productName,
+    variantName,
+    price: variantPrice,
+    image: variantImage,
+  };
+};
+
 const serializeCart = (cart) => {
   const rawItems = cart?.items || [];
   const items = rawItems.map((item) => {
@@ -19,6 +47,10 @@ const serializeCart = (cart) => {
       product_name: item.product_name,
       product_price: productPrice,
       product_image: item.product_image,
+      variant_key: item.variant_key || 'body',
+      variant_name: item.variant_name || item.product_name,
+      variant_price: item.variant_price != null ? Number(item.variant_price) : productPrice,
+      variant_image: item.variant_image || item.product_image,
       quantity,
       subtotal: productPrice * quantity,
       created_at: item.created_at,
@@ -109,10 +141,11 @@ export const addItemToCart = async (req, res, next) => {
     }
 
     const snapshot = await fetchProductSnapshot(productId);
+    const variant = normalizeVariant(req.body, snapshot);
     transaction = await sequelize.transaction();
     const cart = await getOrCreateCart(userId, transaction);
     const existing = await CartItem.findOne({
-      where: { cart_id: cart.id, product_id: productId },
+      where: { cart_id: cart.id, product_id: productId, variant_key: variant.key },
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
@@ -123,9 +156,12 @@ export const addItemToCart = async (req, res, next) => {
     if (existing) {
       await existing.update(
         {
-          product_name: snapshot.name,
-          product_price: snapshot.price,
-          product_image: snapshot.image,
+          product_name: variant.productName,
+          product_price: variant.price,
+          product_image: variant.image,
+          variant_name: variant.variantName,
+          variant_price: variant.price,
+          variant_image: variant.image,
           quantity: nextQuantity,
         },
         { transaction }
@@ -135,9 +171,13 @@ export const addItemToCart = async (req, res, next) => {
         {
           cart_id: cart.id,
           product_id: productId,
-          product_name: snapshot.name,
-          product_price: snapshot.price,
-          product_image: snapshot.image,
+          product_name: variant.productName,
+          product_price: variant.price,
+          product_image: variant.image,
+          variant_key: variant.key,
+          variant_name: variant.variantName,
+          variant_price: variant.price,
+          variant_image: variant.image,
           quantity,
         },
         { transaction }
@@ -199,11 +239,19 @@ export const updateCartItem = async (req, res, next) => {
       return res.status(404).json({ message: 'Cart item not found' });
     }
 
+    const isBaseVariant = ['body', 'default'].includes(String(item.variant_key || '').toLowerCase());
+    const productName = isBaseVariant ? snapshot.name : item.product_name;
+    const productPrice = isBaseVariant ? snapshot.price : Number(item.variant_price || item.product_price);
+    const productImage = isBaseVariant ? snapshot.image : item.variant_image || item.product_image;
+
     await item.update(
       {
-        product_name: snapshot.name,
-        product_price: snapshot.price,
-        product_image: snapshot.image,
+        product_name: productName,
+        product_price: productPrice,
+        product_image: productImage,
+        variant_name: isBaseVariant ? productName : item.variant_name,
+        variant_price: productPrice,
+        variant_image: productImage,
         quantity,
       },
       { transaction }

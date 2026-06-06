@@ -74,8 +74,51 @@ app.use((error, req, res, next) => {
   });
 });
 
+const ensureCartVariantColumns = async () => {
+  const [tables] = await sequelize.query("SHOW TABLES LIKE 'cart_items'");
+
+  if (tables.length === 0) {
+    return;
+  }
+
+  const [columns] = await sequelize.query('SHOW COLUMNS FROM cart_items');
+  const existingColumns = new Set(columns.map((column) => column.Field));
+
+  const addColumn = async (name, definition) => {
+    if (!existingColumns.has(name)) {
+      await sequelize.query(`ALTER TABLE cart_items ADD COLUMN ${name} ${definition}`);
+    }
+  };
+
+  await addColumn('variant_key', "VARCHAR(50) NOT NULL DEFAULT 'body' AFTER product_image");
+  await addColumn('variant_name', 'VARCHAR(255) NULL AFTER variant_key');
+  await addColumn('variant_price', 'DECIMAL(15,0) NULL AFTER variant_name');
+  await addColumn('variant_image', 'VARCHAR(500) NULL AFTER variant_price');
+
+  const [indexes] = await sequelize.query('SHOW INDEX FROM cart_items');
+  const indexNames = new Set(indexes.map((index) => index.Key_name));
+
+  const legacyUniqueIndexes = [
+    'uq_cart_items_cart_product',
+    'cart_items_cart_id_product_id',
+  ];
+
+  for (const indexName of legacyUniqueIndexes) {
+    if (indexNames.has(indexName)) {
+      await sequelize.query(`ALTER TABLE cart_items DROP INDEX ${indexName}`);
+    }
+  }
+
+  if (!indexNames.has('uq_cart_items_cart_product_variant')) {
+    await sequelize.query(
+      'ALTER TABLE cart_items ADD UNIQUE KEY uq_cart_items_cart_product_variant (cart_id, product_id, variant_key)'
+    );
+  }
+};
+
 const start = async () => {
   await sequelize.authenticate();
+  await ensureCartVariantColumns();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });

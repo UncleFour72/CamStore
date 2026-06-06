@@ -192,13 +192,19 @@ const buildItemsFromCart = async (cart) => {
       throw error;
     }
 
+    const requestedPrice = toMoney(item.product_price ?? item.variant_price, null);
+    const productPrice =
+      requestedPrice !== null && requestedPrice >= snapshot.price ? requestedPrice : snapshot.price;
+    const productName = String(item.product_name || item.variant_name || snapshot.name).trim();
+    const productImage = item.product_image || item.variant_image || snapshot.image;
+
     orderItems.push({
       product_id: snapshot.id,
-      product_name: snapshot.name,
-      product_price: snapshot.price,
-      product_image: snapshot.image,
+      product_name: productName || snapshot.name,
+      product_price: productPrice,
+      product_image: productImage,
       quantity,
-      subtotal: snapshot.price * quantity,
+      subtotal: productPrice * quantity,
     });
   }
 

@@ -34,10 +34,12 @@ export const normalizeCart = (cart) => {
         id: String(item.product_id),
         productId: item.product_id,
         apiId: item.product_id,
-        name: item.product_name,
+        name: item.variant_name || item.product_name,
         price,
-        image: item.product_image || FALLBACK_IMAGE,
-        eyebrow: 'CamStore',
+        image: item.variant_image || item.product_image || FALLBACK_IMAGE,
+        eyebrow: item.variant_name || item.variant_key ? item.variant_name || item.variant_key : 'CamStore',
+        variantKey: item.variant_key || 'body',
+        variantName: item.variant_name || item.product_name,
       },
     };
   });
@@ -55,11 +57,16 @@ export const getCart = async () => {
   return normalizeCart(data.cart);
 };
 
-export const addToCart = async ({ productId, quantity = 1 }) => {
+export const addToCart = async ({ productId, quantity = 1, variant = null }) => {
   const data = await api
     .post('/cart', {
       product_id: productId,
       quantity,
+      variant_key: variant?.key,
+      product_name: variant?.name,
+      variant_name: variant?.label,
+      variant_price: variant?.price,
+      variant_image: variant?.image,
     })
     .then(unwrapData);
 

@@ -39,6 +39,29 @@ CartItem.init(
       type: DataTypes.STRING(500),
       allowNull: true,
     },
+    variant_key: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: 'body',
+      validate: {
+        notEmpty: true,
+      },
+    },
+    variant_name: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    variant_price: {
+      type: DataTypes.DECIMAL(15, 0),
+      allowNull: true,
+      validate: {
+        min: 0,
+      },
+    },
+    variant_image: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -55,7 +78,7 @@ CartItem.init(
     indexes: [
       { fields: ['cart_id'] },
       { fields: ['product_id'] },
-      { fields: ['cart_id', 'product_id'], unique: true },
+      { name: 'uq_cart_items_cart_product_variant', fields: ['cart_id', 'product_id', 'variant_key'], unique: true },
     ],
   }
 );
