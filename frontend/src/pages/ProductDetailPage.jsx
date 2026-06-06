@@ -19,6 +19,74 @@ import { clearReviewError, createReview, fetchProductReviews } from '../store/sl
 import { fetchWishlist, toggleWishlist } from '../store/slices/wishlistSlice.js';
 import { formatPrice } from '../utils/helpers.js';
 
+const BUY_NOW_KEY = 'camstore_buy_now_checkout';
+const CAMERA_CATEGORY_KEYS = ['camera', 'video-camera'];
+const KIT_PRICE_DELTA = 6500000;
+
+const fallbackGallery = [
+  assets.heroCamera,
+  assets.cameraDark,
+  assets.lensDark,
+  assets.studioLight,
+  assets.sensor,
+  assets.colorGrade,
+];
+
+const uniqueImages = (images = []) => {
+  return [...new Set(images.filter(Boolean))];
+};
+
+const fillImages = (images = [], variant = 'body') => {
+  const variantFallbacks =
+    variant === 'kit'
+      ? [assets.cameraDark, assets.lensDark, assets.studioLight, assets.sensor, assets.colorGrade, assets.heroCamera]
+      : fallbackGallery;
+
+  return uniqueImages([...images, ...variantFallbacks]).slice(0, 6);
+};
+
+const isCameraProduct = (product) => {
+  const category = String(product?.category || '').toLowerCase();
+  const categoryName = String(product?.categoryName || '').toLowerCase();
+
+  return CAMERA_CATEGORY_KEYS.includes(category) || categoryName.includes('máy ảnh') || categoryName.includes('camera');
+};
+
+const buildProductVariants = (product) => {
+  if (!product) {
+    return [];
+  }
+
+  const bodyGallery = fillImages(product.gallery?.length ? product.gallery : [product.image], 'body');
+  const basePrice = product.detailPrice || product.price;
+  const bodyVariant = {
+    id: 'body',
+    label: 'Chỉ thân máy (Body Only)',
+    name: product.detailName || product.name,
+    price: basePrice,
+    mainImage: bodyGallery[0],
+    thumbnails: bodyGallery.slice(1, 6),
+  };
+
+  if (!isCameraProduct(product)) {
+    return [bodyVariant];
+  }
+
+  const kitGallery = fillImages([product.image, assets.lensDark, ...(product.gallery || [])], 'kit');
+
+  return [
+    bodyVariant,
+    {
+      id: 'kit',
+      label: 'Body + Lens 28-70mm Kit',
+      name: `${product.detailName || product.name} + Lens 28-70mm Kit`,
+      price: basePrice + KIT_PRICE_DELTA,
+      mainImage: kitGallery[0],
+      thumbnails: kitGallery.slice(1, 6),
+    },
+  ];
+};
+
 export default function ProductDetailPage() {
   const { productId } = useParams();
   const dispatch = useDispatch();
@@ -52,7 +120,6 @@ export default function ProductDetailPage() {
       return;
     }
 
-    setSelectedImage(product.gallery?.[0] || product.image);
     setCombo('body');
     dispatch(fetchProducts({ category: product.category, limit: 4, sort: 'popular' }));
     dispatch(fetchProductReviews({ productId: product.productId || product.apiId, page: 1, pageSize: 5 }));
@@ -84,6 +151,16 @@ export default function ProductDetailPage() {
     const productApiId = Number(product?.productId || product?.apiId);
     return wishlistProductIds.some((id) => Number(id) === productApiId);
   }, [product?.apiId, product?.productId, wishlistProductIds]);
+  const productVariants = useMemo(() => buildProductVariants(product), [product]);
+  const selectedVariant = useMemo(() => {
+    return productVariants.find((variant) => variant.id === combo) || productVariants[0] || null;
+  }, [combo, productVariants]);
+
+  useEffect(() => {
+    if (selectedVariant) {
+      setSelectedImage(selectedVariant.mainImage);
+    }
+  }, [product?.id, selectedVariant?.id, selectedVariant?.mainImage]);
 
   function updateReviewForm(event) {
     dispatch(clearReviewError());
@@ -135,6 +212,11 @@ export default function ProductDetailPage() {
       return;
     }
 
+    if (selectedVariant?.id === 'kit') {
+      setCartMessage('Combo Body + Lens sẽ được xử lý bằng Mua ngay để giữ đúng ảnh và giá.');
+      return;
+    }
+
     try {
       await addItem(product.productId || product.apiId || product.id, 1).unwrap();
 
@@ -149,6 +231,46 @@ export default function ProductDetailPage() {
         typeof err === 'string' ? err : err?.message || 'Không thể thêm sản phẩm vào giỏ hàng.'
       );
     }
+  }
+
+  function handleBuyNow() {
+    if (!product || !selectedVariant) {
+      return;
+    }
+
+    if (stockQuantity <= 0) {
+      setCartMessage('Sản phẩm đang tạm hết hàng.');
+      return;
+    }
+
+    const productApiId = product.productId || product.apiId || product.id;
+    const item = {
+      id: `buy-now-${productApiId}-${selectedVariant.id}`,
+      productId: productApiId,
+      quantity: 1,
+      price: selectedVariant.price,
+      subtotal: selectedVariant.price,
+      variant: selectedVariant.id,
+      product: {
+        id: product.id,
+        productId: productApiId,
+        apiId: productApiId,
+        name: selectedVariant.name,
+        price: selectedVariant.price,
+        image: selectedVariant.mainImage,
+        eyebrow: selectedVariant.label,
+      },
+    };
+
+    window.localStorage.setItem(
+      BUY_NOW_KEY,
+      JSON.stringify({
+        source: 'buy_now',
+        createdAt: new Date().toISOString(),
+        items: [item],
+      })
+    );
+    navigate('/checkout?mode=buy-now');
   }
 
   if (isLoading && !product) {
@@ -181,9 +303,11 @@ export default function ProductDetailPage() {
     return null;
   }
 
-  const gallery = product.gallery?.length ? product.gallery : [product.image];
-  const basePrice = product.detailPrice || product.price;
-  const kitPrice = basePrice + 6500000;
+  const gallery = selectedVariant?.thumbnails?.length ? selectedVariant.thumbnails : product.gallery || [];
+  const currentMainImage = selectedImage || selectedVariant?.mainImage || product.image;
+  const currentPrice = selectedVariant?.price || product.detailPrice || product.price;
+  const basePrice = productVariants[0]?.price || product.detailPrice || product.price;
+  const kitPrice = productVariants.find((variant) => variant.id === 'kit')?.price || basePrice + KIT_PRICE_DELTA;
   const stockQuantity = Number(product.stock || 0);
   const specs = Array.isArray(product.specs) ? product.specs : [];
 
@@ -202,11 +326,11 @@ export default function ProductDetailPage() {
         <div className="pdp-grid">
           <div className="pdp-gallery">
             <div className="pdp-thumbs">
-              {gallery.map((image) => (
+              {gallery.map((image, index) => (
                 <button
                   type="button"
                   className={selectedImage === image ? 'active' : ''}
-                  key={image}
+                  key={`${image}-${index}`}
                   onClick={() => setSelectedImage(image)}
                 >
                   <img src={image} alt={`${product.name} thumbnail`} />
@@ -214,7 +338,7 @@ export default function ProductDetailPage() {
               ))}
             </div>
             <div className="pdp-main-image">
-              <img src={selectedImage || product.image} alt={product.name} />
+              <img src={currentMainImage} alt={selectedVariant?.name || product.name} />
             </div>
           </div>
 
@@ -231,9 +355,10 @@ export default function ProductDetailPage() {
                 {Number(product.rating || 0).toFixed(1)} ({product.reviews || 0} đánh giá)
               </p>
             </div>
-            <strong className="pdp-price">{formatPrice(basePrice)}</strong>
+            <strong className="pdp-price">{formatPrice(currentPrice)}</strong>
             <p className="pdp-description">{product.description || product.tagline}</p>
 
+            {productVariants.length > 1 && (
             <div className="pdp-combos">
               <span>Lựa chọn combo</span>
               <label className={combo === 'body' ? 'active' : ''}>
@@ -257,6 +382,7 @@ export default function ProductDetailPage() {
                 <strong>{formatPrice(kitPrice)}</strong>
               </label>
             </div>
+            )}
 
             <div className="pdp-actions">
               <button
@@ -271,7 +397,7 @@ export default function ProductDetailPage() {
                 className="button primary full"
                 type="button"
                 disabled={stockQuantity <= 0}
-                onClick={() => handleAddToCart({ goToCheckout: true })}
+                onClick={handleBuyNow}
               >
                 Mua ngay
               </button>

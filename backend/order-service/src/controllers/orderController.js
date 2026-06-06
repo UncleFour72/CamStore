@@ -167,6 +167,7 @@ const normalizeManualItems = (items) => {
   }
 
   return items.map((item) => ({
+    ...item,
     product_id: toPositiveInt(item.product_id),
     quantity: toPositiveInt(item.quantity, 1),
   }));
@@ -223,13 +224,19 @@ const buildItemsFromManualInput = async (items) => {
       throw error;
     }
 
+    const requestedPrice = toMoney(item.product_price ?? item.price, null);
+    const productPrice =
+      requestedPrice !== null && requestedPrice >= snapshot.price ? requestedPrice : snapshot.price;
+    const productName = String(item.product_name || item.name || snapshot.name).trim();
+    const productImage = item.product_image || item.image || snapshot.image;
+
     orderItems.push({
       product_id: snapshot.id,
-      product_name: snapshot.name,
-      product_price: snapshot.price,
-      product_image: snapshot.image,
+      product_name: productName || snapshot.name,
+      product_price: productPrice,
+      product_image: productImage,
       quantity: item.quantity,
-      subtotal: snapshot.price * item.quantity,
+      subtotal: productPrice * item.quantity,
     });
   }
 
@@ -563,11 +570,17 @@ export const checkout = async (req, res, next) => {
     let userId = Number(req.auth.id);
     let orderItems;
     let cart = null;
+    const usesDirectItems = Array.isArray(req.body.items) && req.body.items.length > 0;
 
     if (purchaseChannel === 'online') {
       validateShipping(req.body);
-      cart = await getCartForUser(userId);
-      orderItems = await buildItemsFromCart(cart);
+
+      if (usesDirectItems) {
+        orderItems = await buildItemsFromManualInput(req.body.items);
+      } else {
+        cart = await getCartForUser(userId);
+        orderItems = await buildItemsFromCart(cart);
+      }
     } else {
       userId = req.body.user_id ? toPositiveInt(req.body.user_id) : null;
       const customerName = req.body.customer_name || req.body.shipping_name;
@@ -599,7 +612,7 @@ export const checkout = async (req, res, next) => {
       throw error;
     }
 
-    if (purchaseChannel === 'online') {
+    if (purchaseChannel === 'online' && !usesDirectItems) {
       await clearCartForUser(userId);
     }
 

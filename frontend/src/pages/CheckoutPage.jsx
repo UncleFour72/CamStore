@@ -1,7 +1,7 @@
 import { Banknote, Building2, LockKeyhole, QrCode, ShieldCheck, ShoppingBasket, Truck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import CartItem from '../components/common/CartItem.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import ToastNotification from '../components/common/ToastNotification.jsx';
@@ -28,6 +28,17 @@ const emptyShippingForm = {
   note: '',
 };
 
+const BUY_NOW_KEY = 'camstore_buy_now_checkout';
+
+const readBuyNowCheckout = () => {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(BUY_NOW_KEY) || 'null');
+    return Array.isArray(parsed?.items) && parsed.items.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const formatAddress = (address) => {
   return [address?.address_line, address?.ward, address?.district, address?.city].filter(Boolean).join(', ');
 };
@@ -46,6 +57,7 @@ const buildAddressPayload = (address, paymentMethod, note) => ({
 export default function CheckoutPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     items,
     itemCount,
@@ -63,15 +75,33 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [useManualAddress, setUseManualAddress] = useState(false);
   const [shippingForm, setShippingForm] = useState(emptyShippingForm);
+  const [buyNowCheckout, setBuyNowCheckout] = useState(null);
 
   const selectedAddress = useMemo(() => {
     return addresses.find((address) => String(address.id) === String(selectedAddressId)) || null;
   }, [addresses, selectedAddressId]);
   const manualAddressActive = useManualAddress || !selectedAddress;
+  const isBuyNowMode = new URLSearchParams(location.search).get('mode') === 'buy-now' && Boolean(buyNowCheckout);
+  const checkoutItems = isBuyNowMode ? buyNowCheckout.items : items;
+  const checkoutItemCount = checkoutItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const checkoutSubtotal = isBuyNowMode
+    ? checkoutItems.reduce((sum, item) => sum + Number(item.subtotal || item.product?.price * item.quantity || 0), 0)
+    : subtotal;
+  const checkoutShipping = isBuyNowMode ? 0 : shipping;
+  const checkoutTotal = checkoutSubtotal + checkoutShipping;
+  const checkoutLoading = !isBuyNowMode && cartLoading;
 
   useEffect(() => {
     dispatch(fetchAddresses());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('mode') === 'buy-now') {
+      setBuyNowCheckout(readBuyNowCheckout());
+    } else {
+      setBuyNowCheckout(null);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (!selectedAddressId && addresses.length > 0) {
@@ -107,7 +137,7 @@ export default function CheckoutPage() {
     event.preventDefault();
     setToast('');
 
-    if (itemCount === 0) {
+    if (checkoutItemCount === 0) {
       setToast('Giỏ hàng đang trống, hãy chọn sản phẩm trước khi checkout.');
       return;
     }
@@ -121,9 +151,26 @@ export default function CheckoutPage() {
       ? buildAddressPayload(shippingForm, paymentMethod, shippingForm.note)
       : buildAddressPayload(selectedAddress, paymentMethod, shippingForm.note);
 
+    if (isBuyNowMode) {
+      payload.items = checkoutItems.map((item) => ({
+        product_id: item.productId || item.product?.productId || item.product?.apiId,
+        quantity: item.quantity,
+        product_name: item.product?.name,
+        product_price: item.product?.price || item.price,
+        product_image: item.product?.image,
+      }));
+      payload.checkout_source = 'buy_now';
+    }
+
     try {
       const result = await dispatch(checkoutOrder(payload)).unwrap();
-      await dispatch(fetchCart());
+
+      if (isBuyNowMode) {
+        window.localStorage.removeItem(BUY_NOW_KEY);
+        setBuyNowCheckout(null);
+      } else {
+        await dispatch(fetchCart());
+      }
 
       if (result.paymentUrl && paymentMethod !== 'cod') {
         window.location.assign(result.paymentUrl);
@@ -152,15 +199,29 @@ export default function CheckoutPage() {
 
           <section className="panel">
             <div className="panel-header">
-              <h2>Giỏ hàng của bạn ({itemCount})</h2>
+              <h2>{isBuyNowMode ? 'Sản phẩm mua ngay' : 'Giỏ hàng của bạn'} ({checkoutItemCount})</h2>
               <ShoppingBasket size={25} />
             </div>
-            {cartLoading && items.length === 0 ? (
+            {checkoutLoading && checkoutItems.length === 0 ? (
               <LoadingSpinner label="Đang tải giỏ hàng" />
-            ) : items.length > 0 ? (
+            ) : checkoutItems.length > 0 ? (
               <div className="cart-lines">
-                {items.map((item) => (
-                  <CartItem key={item.id} item={item} compact />
+                {checkoutItems.map((item) => (
+                  isBuyNowMode ? (
+                    <div className="cart-line compact buy-now-line" key={item.id}>
+                      <div className="cart-line-image">
+                        <img src={item.product.image} alt={item.product.name} />
+                      </div>
+                      <div className="cart-line-main">
+                        <strong className="cart-line-title">{item.product.name}</strong>
+                        <p>{item.product.eyebrow}</p>
+                        <small>Số lượng: {item.quantity}</small>
+                      </div>
+                      <strong className="cart-line-price">{formatPrice(item.product.price * item.quantity)}</strong>
+                    </div>
+                  ) : (
+                    <CartItem key={item.id} item={item} compact />
+                  )
                 ))}
               </div>
             ) : (
@@ -268,19 +329,19 @@ export default function CheckoutPage() {
           <h2>Tóm tắt đơn hàng</h2>
           <div className="summary-lines">
             <div>
-              <span>Tạm tính ({itemCount} sản phẩm)</span>
-              <strong>{formatPrice(subtotal)}</strong>
+              <span>Tạm tính ({checkoutItemCount} sản phẩm)</span>
+              <strong>{formatPrice(checkoutSubtotal)}</strong>
             </div>
             <div>
               <span>Phí vận chuyển</span>
-              <strong className="accent">{shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}</strong>
+              <strong className="accent">{checkoutShipping === 0 ? 'Miễn phí' : formatPrice(checkoutShipping)}</strong>
             </div>
           </div>
 
           <div className="summary-total">
             <span>Tổng cộng</span>
             <div>
-              <strong>{formatPrice(total)}</strong>
+              <strong>{formatPrice(checkoutTotal)}</strong>
               <small>(Đã bao gồm VAT)</small>
             </div>
           </div>
@@ -309,7 +370,7 @@ export default function CheckoutPage() {
 
           {orderError && <p className="form-error">{orderError}</p>}
 
-          <button className="button primary full order-button" type="submit" disabled={orderLoading || itemCount === 0}>
+          <button className="button primary full order-button" type="submit" disabled={orderLoading || checkoutItemCount === 0}>
             {orderLoading ? 'ĐANG ĐẶT HÀNG...' : 'ĐẶT HÀNG NGAY'} <LockKeyhole size={21} />
           </button>
           <p className="secure-note">
