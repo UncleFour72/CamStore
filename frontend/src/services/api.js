@@ -71,6 +71,7 @@ const MESSAGE_MAP = {
   'A valid email is required': 'Vui lòng nhập email hợp lệ.',
   'Newsletter subscriber not found': 'Không tìm thấy người đăng ký nhận tin.',
   'Warranty not found': 'Không tìm thấy phiếu bảo hành.',
+  'Serial number is already used by another warranty': 'Serial này đã được dùng cho phiếu bảo hành khác.',
   'You cannot access this warranty': 'Bạn không có quyền xem phiếu bảo hành này.',
   'Invalid warranty status': 'Trạng thái bảo hành không hợp lệ.',
   'query is required': 'Vui lòng nhập thông tin cần tra cứu.',

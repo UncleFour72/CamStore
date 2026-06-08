@@ -296,6 +296,31 @@ const statusConflict = (message) => {
   return error;
 };
 
+const normalizeSerialNumber = (value) => {
+  const serialNumber = String(value || '').trim();
+  return serialNumber || null;
+};
+
+const ensureUniqueSerialNumber = async (serialNumber, currentWarrantyId = null) => {
+  if (!serialNumber) {
+    return;
+  }
+
+  const where = { serial_number: serialNumber };
+
+  if (currentWarrantyId) {
+    where.id = { [Op.ne]: currentWarrantyId };
+  }
+
+  const existing = await Warranty.findOne({ where });
+
+  if (existing) {
+    const error = new Error('Serial number is already used by another warranty');
+    error.statusCode = 409;
+    throw error;
+  }
+};
+
 const createOrderRecord = async ({ body, userId, purchaseChannel, status, orderItems }) => {
   const transaction = await sequelize.transaction();
 
@@ -969,6 +994,7 @@ export const getWarranties = async (req, res, next) => {
     const limit = Math.min(toPositiveInt(req.query.limit, 20), 100);
     const offset = (page - 1) * limit;
     const where = {};
+    const andFilters = [];
 
     if (req.query.status) {
       where.status = req.query.status;
@@ -976,14 +1002,32 @@ export const getWarranties = async (req, res, next) => {
 
     if (req.query.search) {
       const keyword = `%${String(req.query.search).trim()}%`;
-      where[Op.or] = [
-        { warranty_code: { [Op.like]: keyword } },
-        { order_number: { [Op.like]: keyword } },
-        { product_name: { [Op.like]: keyword } },
-        { serial_number: { [Op.like]: keyword } },
-        { customer_name: { [Op.like]: keyword } },
-        { customer_phone: { [Op.like]: keyword } },
-      ];
+      andFilters.push({
+        [Op.or]: [
+          { warranty_code: { [Op.like]: keyword } },
+          { order_number: { [Op.like]: keyword } },
+          { product_name: { [Op.like]: keyword } },
+          { serial_number: { [Op.like]: keyword } },
+          { customer_name: { [Op.like]: keyword } },
+          { customer_phone: { [Op.like]: keyword } },
+        ],
+      });
+    }
+
+    if (req.query.missing_serial === 'true' || req.query.serial_status === 'missing') {
+      andFilters.push({
+        [Op.or]: [{ serial_number: null }, { serial_number: '' }],
+      });
+    } else if (req.query.serial_status === 'filled') {
+      andFilters.push({
+        serial_number: {
+          [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: '' }],
+        },
+      });
+    }
+
+    if (andFilters.length > 0) {
+      where[Op.and] = andFilters;
     }
 
     const { rows, count } = await Warranty.findAndCountAll({
@@ -1043,13 +1087,17 @@ export const createWarranty = async (req, res, next) => {
 
     const durationMonths = toPositiveInt(req.body.duration_months, Number(process.env.DEFAULT_WARRANTY_MONTHS || 12));
     const startDate = req.body.start_date ? new Date(req.body.start_date) : new Date();
+    const serialNumber = normalizeSerialNumber(req.body.serial_number);
+
+    await ensureUniqueSerialNumber(serialNumber);
+
     const warranty = await Warranty.create({
       warranty_code: req.body.warranty_code || generateWarrantyCode(order.id, req.body.product_id || 0, Date.now()),
       order_id: order.id,
       order_number: order.order_number,
       product_id: toPositiveInt(req.body.product_id),
       product_name: req.body.product_name,
-      serial_number: req.body.serial_number || null,
+      serial_number: serialNumber,
       customer_name: req.body.customer_name || order.shipping_name,
       customer_phone: req.body.customer_phone || order.shipping_phone,
       duration_months: durationMonths,
@@ -1081,6 +1129,11 @@ export const updateWarranty = async (req, res, next) => {
       'end_date',
       'status',
     ]);
+
+    if (payload.serial_number !== undefined) {
+      payload.serial_number = normalizeSerialNumber(payload.serial_number);
+      await ensureUniqueSerialNumber(payload.serial_number, warranty.id);
+    }
 
     if (payload.status && !['active', 'expired', 'claimed', 'voided'].includes(payload.status)) {
       return res.status(400).json({ message: 'Invalid warranty status' });

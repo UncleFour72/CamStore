@@ -59,10 +59,13 @@ export default function AdminWarranty() {
   const [warranties, setWarranties] = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [serialStatus, setSerialStatus] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize, total: 0, totalPages: 1 });
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [serialDrafts, setSerialDrafts] = useState({});
+  const [savingSerialId, setSavingSerialId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -79,8 +82,12 @@ export default function AdminWarranty() {
       next.status = status;
     }
 
+    if (serialStatus) {
+      next.serial_status = serialStatus;
+    }
+
     return next;
-  }, [page, search, status]);
+  }, [page, search, status, serialStatus]);
 
   const loadWarranties = async () => {
     setLoading(true);
@@ -89,6 +96,12 @@ export default function AdminWarranty() {
     try {
       const data = await adminService.getWarranties(params);
       setWarranties(data.items);
+      setSerialDrafts(
+        data.items.reduce((result, warranty) => {
+          result[warranty.id] = warranty.serialNumberRaw || '';
+          return result;
+        }, {})
+      );
       setPagination({
         page: data.page,
         pageSize: data.pageSize,
@@ -188,6 +201,31 @@ export default function AdminWarranty() {
       await loadWarranties();
     } catch (err) {
       setError(err.response?.data?.message || 'Không cập nhật được trạng thái bảo hành.');
+    }
+  };
+
+  const updateSerialDraft = (warrantyId, value) => {
+    setSerialDrafts((current) => ({
+      ...current,
+      [warrantyId]: value,
+    }));
+  };
+
+  const saveSerialNumber = async (warranty) => {
+    setError('');
+    setNotice('');
+    setSavingSerialId(warranty.id);
+
+    try {
+      await adminService.updateWarranty(warranty.id, {
+        serial_number: serialDrafts[warranty.id] || '',
+      });
+      setNotice('Đã cập nhật serial bảo hành.');
+      await loadWarranties();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không cập nhật được serial bảo hành.');
+    } finally {
+      setSavingSerialId(null);
     }
   };
 
@@ -329,6 +367,21 @@ export default function AdminWarranty() {
           </select>
           <ChevronDown size={18} />
         </label>
+        <label className="admin-inline-select">
+          <ShieldCheck size={22} />
+          <select
+            value={serialStatus}
+            onChange={(event) => {
+              setSerialStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Tất cả serial</option>
+            <option value="missing">Thiếu serial</option>
+            <option value="filled">Đã có serial</option>
+          </select>
+          <ChevronDown size={18} />
+        </label>
       </section>
 
       {notice && <p className="form-success">{notice}</p>}
@@ -364,7 +417,21 @@ export default function AdminWarranty() {
                 <p>{warranty.productName}</p>
                 <small>ID #{warranty.product_id}</small>
               </div>
-              <span>{warranty.serialNumber}</span>
+              <div className={warranty.hasSerial ? 'admin-serial-cell' : 'admin-serial-cell missing'}>
+                <input
+                  value={serialDrafts[warranty.id] ?? ''}
+                  onChange={(event) => updateSerialDraft(warranty.id, event.target.value)}
+                  placeholder="Nhập serial"
+                />
+                <button
+                  type="button"
+                  className="admin-btn light"
+                  disabled={savingSerialId === warranty.id}
+                  onClick={() => saveSerialNumber(warranty)}
+                >
+                  {savingSerialId === warranty.id ? 'Lưu...' : 'Lưu'}
+                </button>
+              </div>
               <span>
                 <CalendarDays size={16} /> {warranty.endDate}
               </span>
