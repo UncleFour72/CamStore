@@ -1,5 +1,13 @@
 import { Op } from 'sequelize';
-import { Category, Product, ProductImage, ProductSpec, Wishlist, sequelize } from '../models/index.js';
+import {
+  Category,
+  Product,
+  ProductImage,
+  ProductSpec,
+  ProductVariant,
+  Wishlist,
+  sequelize,
+} from '../models/index.js';
 
 const productFields = [
   'name',
@@ -32,6 +40,16 @@ const toNumberOrNull = (value) => {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const toMoney = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : fallback;
+};
+
+const toNonNegativeInt = (value, fallback = 0) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 };
 
 const buildPagination = (query) => {
@@ -77,6 +95,16 @@ const getProductIncludes = ({ includeSpecs = false } = {}) => {
       separate: true,
       order: [
         ['is_primary', 'DESC'],
+        ['sort_order', 'ASC'],
+        ['id', 'ASC'],
+      ],
+    },
+    {
+      model: ProductVariant,
+      as: 'variants',
+      separate: true,
+      order: [
+        ['is_default', 'DESC'],
         ['sort_order', 'ASC'],
         ['id', 'ASC'],
       ],
@@ -161,6 +189,213 @@ const normalizeSpecs = (specs = []) => {
       };
     })
     .filter((item) => item.spec_name && item.spec_value);
+};
+
+const normalizeVariantKey = (value, index) => {
+  const key = makeSlug(value || `variant-${index + 1}`);
+  return (key || `variant-${index + 1}`).slice(0, 50);
+};
+
+const normalizeVariants = (variants = [], productValues = {}, fallbackImageUrl = null) => {
+  const source = Array.isArray(variants) ? variants : [];
+  const usedKeys = new Set();
+  const basePrice = toMoney(productValues.price, 0);
+  const baseStock = toNonNegativeInt(productValues.stock_quantity, 0);
+  const baseName = String(productValues.name || 'Default variant').trim();
+  const baseSku = String(productValues.sku || '').trim();
+  const baseOriginalPrice = toNumberOrNull(productValues.original_price);
+
+  const normalized = source
+    .map((item, index) => {
+      const name = String(item?.name || item?.variant_name || item?.label || baseName).trim();
+      let variantKey = normalizeVariantKey(
+        item?.variant_key || item?.variantKey || item?.key || item?.slug || name,
+        index
+      );
+      const initialKey = variantKey;
+      let suffix = 2;
+
+      while (usedKeys.has(variantKey)) {
+        variantKey = `${initialKey.slice(0, 46)}-${suffix}`;
+        suffix += 1;
+      }
+
+      usedKeys.add(variantKey);
+
+      return {
+        variant_key: variantKey,
+        name,
+        sku: String(item?.sku || '').trim() || null,
+        price: toMoney(item?.price ?? item?.variant_price ?? item?.variantPrice, basePrice),
+        original_price: toNumberOrNull(item?.original_price ?? item?.originalPrice),
+        stock_quantity: toNonNegativeInt(
+          item?.stock_quantity ?? item?.stock ?? item?.quantity,
+          baseStock
+        ),
+        image_url:
+          String(item?.image_url || item?.image || item?.variant_image || '').trim() ||
+          fallbackImageUrl ||
+          null,
+        sort_order: Number.isInteger(item?.sort_order) ? item.sort_order : index,
+        is_default: Boolean(item?.is_default || item?.isDefault),
+        is_active: item?.is_active === undefined ? true : Boolean(item.is_active),
+      };
+    })
+    .filter((item) => item.name && item.variant_key);
+
+  if (normalized.length === 0) {
+    normalized.push({
+      variant_key: 'body',
+      name: baseName,
+      sku: baseSku ? `${baseSku}-BODY`.slice(0, 120) : null,
+      price: basePrice,
+      original_price: baseOriginalPrice,
+      stock_quantity: baseStock,
+      image_url: fallbackImageUrl,
+      sort_order: 0,
+      is_default: true,
+      is_active: true,
+    });
+  }
+
+  let defaultSeen = false;
+  const withSingleDefault = normalized.map((item, index) => {
+    if ((item.is_default || index === 0) && !defaultSeen) {
+      defaultSeen = true;
+      return { ...item, is_default: true };
+    }
+
+    return { ...item, is_default: false };
+  });
+
+  return withSingleDefault;
+};
+
+const getPrimaryImageUrl = async (productId, transaction = null, fallbackImageUrl = null) => {
+  const image = await ProductImage.findOne({
+    where: { product_id: productId },
+    order: [
+      ['is_primary', 'DESC'],
+      ['sort_order', 'ASC'],
+      ['id', 'ASC'],
+    ],
+    transaction,
+  });
+
+  return image?.image_url || fallbackImageUrl || null;
+};
+
+const getPrimaryImageUrlFromImages = (images = [], fallbackImageUrl = null) => {
+  const primary = images.find((image) => image.is_primary) || images[0];
+  return primary?.image_url || fallbackImageUrl || null;
+};
+
+const syncProductStockFromVariants = async (productId, transaction) => {
+  const variants = await ProductVariant.findAll({
+    where: { product_id: productId, is_active: true },
+    attributes: ['stock_quantity'],
+    transaction,
+  });
+  const stockQuantity = variants.reduce((sum, variant) => sum + Number(variant.stock_quantity || 0), 0);
+
+  await Product.update(
+    { stock_quantity: stockQuantity },
+    {
+      where: { id: productId },
+      transaction,
+    }
+  );
+
+  return stockQuantity;
+};
+
+const ensureProductDefaultVariant = async (product, fallbackImageUrl = null, transaction = null) => {
+  const count = await ProductVariant.count({
+    where: { product_id: product.id },
+    transaction,
+  });
+
+  if (count > 0) {
+    return;
+  }
+
+  const [variant] = normalizeVariants([], product.get ? product.get({ plain: true }) : product, fallbackImageUrl);
+  await ProductVariant.create({ ...variant, product_id: product.id }, { transaction });
+  await syncProductStockFromVariants(product.id, transaction);
+};
+
+const findStockVariant = async (productId, body, transaction) => {
+  const where = { product_id: productId };
+  const variantId = body.variant_id ?? body.variantId;
+  const variantKey = body.variant_key ?? body.variantKey;
+
+  if (variantId) {
+    where.id = Number(variantId);
+  } else if (variantKey) {
+    where.variant_key = String(variantKey).trim();
+  } else {
+    where.is_default = true;
+  }
+
+  let variant = await ProductVariant.findOne({
+    where,
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+    order: [
+      ['is_default', 'DESC'],
+      ['sort_order', 'ASC'],
+      ['id', 'ASC'],
+    ],
+  });
+
+  if (!variant && where.is_default) {
+    variant = await ProductVariant.findOne({
+      where: { product_id: productId },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+      order: [
+        ['is_default', 'DESC'],
+        ['sort_order', 'ASC'],
+        ['id', 'ASC'],
+      ],
+    });
+  }
+
+  return variant;
+};
+
+const getNextStock = (currentStock, body) => {
+  let nextStock = null;
+
+  if (body.stock_quantity !== undefined) {
+    nextStock = Number(body.stock_quantity);
+  } else if (body.stock !== undefined) {
+    nextStock = Number(body.stock);
+  } else if (body.delta !== undefined) {
+    nextStock = currentStock + Number(body.delta);
+  } else if (body.quantity !== undefined && body.operation) {
+    const quantity = Number(body.quantity);
+
+    if (
+      !Number.isInteger(quantity) ||
+      quantity <= 0 ||
+      !['increment', 'decrement'].includes(body.operation)
+    ) {
+      const error = new Error('quantity must be a positive integer and operation must be increment or decrement');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    nextStock = body.operation === 'decrement' ? currentStock - quantity : currentStock + quantity;
+  }
+
+  if (!Number.isInteger(nextStock) || nextStock < 0) {
+    const error = new Error('Invalid stock update or insufficient stock');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return nextStock;
 };
 
 const findCategoryWithChildrenIds = async (idOrSlug) => {
@@ -394,6 +629,7 @@ export const createProduct = async (req, res, next) => {
     const product = await Product.create(payload, { transaction });
     const images = normalizeImages(req.body.images, req.body.image_url);
     const specs = normalizeSpecs(req.body.specs);
+    const primaryImageUrl = getPrimaryImageUrlFromImages(images, req.body.image_url);
 
     if (images.length > 0) {
       await ProductImage.bulkCreate(
@@ -408,6 +644,13 @@ export const createProduct = async (req, res, next) => {
         { transaction }
       );
     }
+
+    const variants = normalizeVariants(req.body.variants, product.get({ plain: true }), primaryImageUrl);
+    await ProductVariant.bulkCreate(
+      variants.map((variant) => ({ ...variant, product_id: product.id })),
+      { transaction }
+    );
+    await syncProductStockFromVariants(product.id, transaction);
 
     await transaction.commit();
     transaction = null;
@@ -469,6 +712,11 @@ export const updateProduct = async (req, res, next) => {
       }
     }
 
+    const primaryImageUrl =
+      req.body.images !== undefined || req.body.image_url !== undefined
+        ? getPrimaryImageUrlFromImages(normalizeImages(req.body.images, req.body.image_url), req.body.image_url)
+        : await getPrimaryImageUrl(product.id, transaction, req.body.image_url);
+
     if (req.body.specs !== undefined) {
       const specs = normalizeSpecs(req.body.specs);
 
@@ -480,6 +728,19 @@ export const updateProduct = async (req, res, next) => {
           { transaction }
         );
       }
+    }
+
+    if (req.body.variants !== undefined) {
+      const variants = normalizeVariants(req.body.variants, product.get({ plain: true }), primaryImageUrl);
+
+      await ProductVariant.destroy({ where: { product_id: product.id }, transaction });
+      await ProductVariant.bulkCreate(
+        variants.map((variant) => ({ ...variant, product_id: product.id })),
+        { transaction }
+      );
+      await syncProductStockFromVariants(product.id, transaction);
+    } else {
+      await ensureProductDefaultVariant(product, primaryImageUrl, transaction);
     }
 
     await transaction.commit();
@@ -526,43 +787,26 @@ export const updateStock = async (req, res, next) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    let nextStock = null;
+    await ensureProductDefaultVariant(product, await getPrimaryImageUrl(product.id, transaction), transaction);
+    const variant = await findStockVariant(product.id, req.body, transaction);
 
-    if (req.body.stock_quantity !== undefined) {
-      nextStock = Number(req.body.stock_quantity);
-    } else if (req.body.delta !== undefined) {
-      nextStock = product.stock_quantity + Number(req.body.delta);
-    } else if (req.body.quantity !== undefined && req.body.operation) {
-      const quantity = Number(req.body.quantity);
-
-      if (
-        !Number.isInteger(quantity) ||
-        quantity <= 0 ||
-        !['increment', 'decrement'].includes(req.body.operation)
-      ) {
-        await transaction.rollback();
-        return res.status(400).json({
-          message: 'quantity must be a positive integer and operation must be increment or decrement',
-        });
-      }
-
-      nextStock =
-        req.body.operation === 'decrement'
-          ? product.stock_quantity - quantity
-          : product.stock_quantity + quantity;
-    }
-
-    if (!Number.isInteger(nextStock) || nextStock < 0) {
+    if (!variant) {
       await transaction.rollback();
-      return res.status(400).json({ message: 'Invalid stock update or insufficient stock' });
+      return res.status(404).json({ message: 'Product variant not found' });
     }
 
-    await product.update({ stock_quantity: nextStock }, { transaction });
+    const nextStock = getNextStock(Number(variant.stock_quantity || 0), req.body);
+
+    await variant.update({ stock_quantity: nextStock }, { transaction });
+    const productStock = await syncProductStockFromVariants(product.id, transaction);
     await transaction.commit();
 
     return res.json({
       product_id: product.id,
-      stock_quantity: product.stock_quantity,
+      variant_id: variant.id,
+      variant_key: variant.variant_key,
+      variant_stock_quantity: variant.stock_quantity,
+      stock_quantity: productStock,
     });
   } catch (error) {
     await transaction.rollback();

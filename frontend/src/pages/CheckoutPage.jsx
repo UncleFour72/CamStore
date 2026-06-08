@@ -154,6 +154,8 @@ export default function CheckoutPage() {
     if (isBuyNowMode) {
       payload.items = checkoutItems.map((item) => ({
         product_id: item.productId || item.product?.productId || item.product?.apiId,
+        variant_id: item.variantId || item.product?.variantId,
+        variant_key: item.variantKey || item.product?.variantKey,
         quantity: item.quantity,
         product_name: item.product?.name,
         product_price: item.product?.price || item.price,

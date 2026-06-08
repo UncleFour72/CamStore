@@ -67,6 +67,31 @@ CREATE TABLE IF NOT EXISTS product_images (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS product_variants (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  product_id INT NOT NULL,
+  variant_key VARCHAR(50) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  sku VARCHAR(120) NULL,
+  price DECIMAL(15,0) NOT NULL,
+  original_price DECIMAL(15,0) NULL,
+  stock_quantity INT NOT NULL DEFAULT 0,
+  image_url VARCHAR(500) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_product_variants_product_key (product_id, variant_key),
+  INDEX idx_product_variants_product_id (product_id),
+  INDEX idx_product_variants_sku (sku),
+  INDEX idx_product_variants_is_active (is_active),
+  CONSTRAINT fk_product_variants_product_id
+    FOREIGN KEY (product_id) REFERENCES products(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS product_specs (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,

@@ -21,6 +21,17 @@ import { formatPrice } from '../../utils/helpers.js';
 const pageSize = 8;
 
 const createEmptySpec = () => ({ spec_name: '', spec_value: '' });
+const createEmptyVariant = (isDefault = false) => ({
+  variant_key: isDefault ? 'body' : '',
+  name: '',
+  sku: '',
+  price: '',
+  original_price: '',
+  stock_quantity: '',
+  image_url: '',
+  is_default: isDefault,
+  is_active: true,
+});
 
 const createEmptyForm = () => ({
   name: '',
@@ -37,6 +48,7 @@ const createEmptyForm = () => ({
   image_url: '',
   is_active: true,
   specs: [createEmptySpec()],
+  variants: [createEmptyVariant(true)],
 });
 
 const buildPayload = (form) => {
@@ -61,6 +73,25 @@ const buildPayload = (form) => {
         sort_order: index,
       }))
       .filter((spec) => spec.spec_name && spec.spec_value),
+    variants: form.variants
+      .map((variant, index) => ({
+        variant_key: (variant.variant_key || (index === 0 ? 'body' : '')).trim(),
+        name: (variant.name || (index === 0 ? form.name : '')).trim(),
+        sku: variant.sku.trim() || null,
+        price: variant.price ? Number(variant.price) : Number(form.price),
+        original_price: variant.original_price ? Number(variant.original_price) : null,
+        stock_quantity:
+          variant.stock_quantity !== ''
+            ? Number(variant.stock_quantity || 0)
+            : index === 0
+              ? Number(form.stock_quantity || 0)
+              : 0,
+        image_url: variant.image_url.trim() || form.image_url.trim() || null,
+        sort_order: index,
+        is_default: Boolean(variant.is_default),
+        is_active: Boolean(variant.is_active),
+      }))
+      .filter((variant) => variant.variant_key && variant.name),
   };
 };
 
@@ -173,6 +204,19 @@ export default function AdminProducts() {
     const specs = product.specs?.length
       ? product.specs.map(([spec_name, spec_value]) => ({ spec_name, spec_value }))
       : [createEmptySpec()];
+    const variants = product.variants?.length
+      ? product.variants.map((variant) => ({
+          variant_key: variant.key || variant.variant_key || '',
+          name: variant.name || variant.label || '',
+          sku: variant.sku || '',
+          price: variant.price || '',
+          original_price: variant.originalPrice || variant.original_price || '',
+          stock_quantity: variant.stock || variant.stock_quantity || '',
+          image_url: variant.image || variant.image_url || '',
+          is_default: Boolean(variant.isDefault || variant.is_default),
+          is_active: variant.isActive !== false && variant.is_active !== false,
+        }))
+      : [createEmptyVariant(true)];
 
     setEditingId(product.productId || product.apiId);
     setForm({
@@ -190,6 +234,7 @@ export default function AdminProducts() {
       image_url: product.image || '',
       is_active: Boolean(product.is_active),
       specs,
+      variants,
     });
     setMessage('');
     setError('');
@@ -221,6 +266,56 @@ export default function AdminProducts() {
           ? current.specs.filter((_, specIndex) => specIndex !== index)
           : [createEmptySpec()],
     }));
+  }
+
+  function updateVariant(index, field, value) {
+    setForm((current) => ({
+      ...current,
+      variants: current.variants.map((variant, variantIndex) =>
+        variantIndex === index ? { ...variant, [field]: value } : variant
+      ),
+    }));
+  }
+
+  function toggleVariantCheck(index, field, checked) {
+    setForm((current) => ({
+      ...current,
+      variants: current.variants.map((variant, variantIndex) => {
+        if (field === 'is_default') {
+          return {
+            ...variant,
+            is_default: variantIndex === index ? checked : false,
+          };
+        }
+
+        return variantIndex === index ? { ...variant, [field]: checked } : variant;
+      }),
+    }));
+  }
+
+  function addVariantRow() {
+    setForm((current) => ({
+      ...current,
+      variants: [...current.variants, createEmptyVariant(false)],
+    }));
+  }
+
+  function removeVariantRow(index) {
+    setForm((current) => {
+      const variants =
+        current.variants.length > 1
+          ? current.variants.filter((_, variantIndex) => variantIndex !== index)
+          : [createEmptyVariant(true)];
+
+      if (!variants.some((variant) => variant.is_default)) {
+        variants[0].is_default = true;
+      }
+
+      return {
+        ...current,
+        variants,
+      };
+    });
   }
 
   async function handleSubmit(event) {
@@ -392,6 +487,76 @@ export default function AdminProducts() {
                     ))}
                   </div>
                   <small>Mỗi dòng gồm tên thông số và giá trị, ví dụ: ISO / 100 - 51,200.</small>
+                </div>
+                <div className="admin-spec-editor admin-variant-editor span-2">
+                  <div className="admin-spec-head">
+                    <span>Biến thể sản phẩm</span>
+                    <button type="button" className="admin-btn light" onClick={addVariantRow}>
+                      <ListPlus size={18} /> Thêm biến thể
+                    </button>
+                  </div>
+                  <div className="admin-variant-rows">
+                    {form.variants.map((variant, index) => (
+                      <div className="admin-variant-row" key={index}>
+                        <input
+                          value={variant.variant_key}
+                          onChange={(event) => updateVariant(index, 'variant_key', event.target.value)}
+                          placeholder="body / kit"
+                          required={index === 0}
+                        />
+                        <input
+                          value={variant.name}
+                          onChange={(event) => updateVariant(index, 'name', event.target.value)}
+                          placeholder="Body Only"
+                          required={index === 0}
+                        />
+                        <input
+                          value={variant.sku}
+                          onChange={(event) => updateVariant(index, 'sku', event.target.value)}
+                          placeholder="SKU biến thể"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.price}
+                          onChange={(event) => updateVariant(index, 'price', event.target.value)}
+                          placeholder="Giá"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.stock_quantity}
+                          onChange={(event) => updateVariant(index, 'stock_quantity', event.target.value)}
+                          placeholder="Tồn"
+                        />
+                        <input
+                          value={variant.image_url}
+                          onChange={(event) => updateVariant(index, 'image_url', event.target.value)}
+                          placeholder="Ảnh variant"
+                        />
+                        <label className="admin-mini-check">
+                          <input
+                            type="checkbox"
+                            checked={variant.is_default}
+                            onChange={(event) => toggleVariantCheck(index, 'is_default', event.target.checked)}
+                          />
+                          <span>Mặc định</span>
+                        </label>
+                        <label className="admin-mini-check">
+                          <input
+                            type="checkbox"
+                            checked={variant.is_active}
+                            onChange={(event) => toggleVariantCheck(index, 'is_active', event.target.checked)}
+                          />
+                          <span>Bán</span>
+                        </label>
+                        <button type="button" aria-label="Xóa biến thể" onClick={() => removeVariantRow(index)}>
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <small>Ví dụ máy ảnh có 2 dòng: body và kit. Tồn kho sản phẩm sẽ được tính từ tổng tồn kho các biến thể đang bán.</small>
                 </div>
                 <label className="span-2 admin-file-control">
                   <span className="field-label">Ảnh sản phẩm</span>

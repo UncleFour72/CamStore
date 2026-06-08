@@ -5629,6 +5629,70 @@ img {
   cursor: pointer;
 }
 
+.admin-variant-editor {
+  border: 1px solid #d9e4ef;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f8fbff;
+}
+
+.admin-variant-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-variant-row {
+  display: grid;
+  grid-template-columns:
+    minmax(78px, 0.7fr)
+    minmax(170px, 1.15fr)
+    minmax(120px, 0.9fr)
+    minmax(105px, 0.75fr)
+    minmax(84px, 0.55fr)
+    minmax(150px, 1fr)
+    minmax(88px, auto)
+    minmax(58px, auto)
+    42px;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-variant-row input {
+  min-height: 44px;
+  padding-inline: 10px;
+}
+
+.admin-variant-row > button {
+  width: 42px;
+  height: 44px;
+  border: 1px solid #f0b7bd;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #fff4f5;
+  color: #be1e2d;
+  cursor: pointer;
+}
+
+.admin-mini-check {
+  min-height: 44px;
+  border: 1px solid #d3deea;
+  border-radius: 8px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px !important;
+  padding-inline: 8px;
+  background: #ffffff;
+  font-size: 12px !important;
+  font-weight: 800;
+}
+
+.admin-mini-check input {
+  width: 16px;
+  min-height: 16px;
+}
+
 .admin-instore-row {
   grid-template-columns: minmax(220px, 1fr) 110px 42px minmax(120px, auto);
   align-items: center;
@@ -6862,7 +6926,8 @@ img {
   }
 
   .admin-spec-head,
-  .admin-spec-row {
+  .admin-spec-row,
+  .admin-variant-row {
     grid-template-columns: 1fr;
   }
 
@@ -6871,7 +6936,8 @@ img {
     flex-direction: column;
   }
 
-  .admin-spec-row button {
+  .admin-spec-row button,
+  .admin-variant-row > button {
     width: 100%;
   }
 

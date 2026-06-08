@@ -27,6 +27,8 @@ export const normalizeCart = (cart) => {
     return {
       id: item.id,
       productId: item.product_id,
+      variantId: item.variant_id,
+      variantKey: item.variant_key || 'body',
       quantity,
       price,
       subtotal: toNumber(item.subtotal, price * quantity),
@@ -38,6 +40,7 @@ export const normalizeCart = (cart) => {
         price,
         image: item.variant_image || item.product_image || FALLBACK_IMAGE,
         eyebrow: item.variant_name || item.variant_key ? item.variant_name || item.variant_key : 'CamStore',
+        variantId: item.variant_id,
         variantKey: item.variant_key || 'body',
         variantName: item.variant_name || item.product_name,
       },
@@ -62,11 +65,8 @@ export const addToCart = async ({ productId, quantity = 1, variant = null }) => 
     .post('/cart', {
       product_id: productId,
       quantity,
+      variant_id: variant?.id || variant?.variantId,
       variant_key: variant?.key,
-      product_name: variant?.name,
-      variant_name: variant?.label,
-      variant_price: variant?.price,
-      variant_image: variant?.image,
     })
     .then(unwrapData);
 

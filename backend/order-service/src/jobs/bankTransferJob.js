@@ -62,7 +62,7 @@ const cancelExpiredOrder = async (order) => {
 
   for (const item of order.items || []) {
     try {
-      await incrementStock(item.product_id, Number(item.quantity));
+      await incrementStock(item.product_id, Number(item.quantity), item);
     } catch (error) {
       console.warn(`Stock restore failed for product ${item.product_id}:`, error.message);
     }

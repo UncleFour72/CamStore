@@ -90,6 +90,7 @@ const ensureCartVariantColumns = async () => {
     }
   };
 
+  await addColumn('variant_id', 'INT NULL AFTER product_id');
   await addColumn('variant_key', "VARCHAR(50) NOT NULL DEFAULT 'body' AFTER product_image");
   await addColumn('variant_name', 'VARCHAR(255) NULL AFTER variant_key');
   await addColumn('variant_price', 'DECIMAL(15,0) NULL AFTER variant_name');
@@ -107,6 +108,10 @@ const ensureCartVariantColumns = async () => {
     if (indexNames.has(indexName)) {
       await sequelize.query(`ALTER TABLE cart_items DROP INDEX ${indexName}`);
     }
+  }
+
+  if (!indexNames.has('idx_cart_items_variant_id')) {
+    await sequelize.query('ALTER TABLE cart_items ADD INDEX idx_cart_items_variant_id (variant_id)');
   }
 
   if (!indexNames.has('uq_cart_items_cart_product_variant')) {

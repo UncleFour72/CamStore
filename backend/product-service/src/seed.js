@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'url';
-import { Category, Product, ProductImage, ProductSpec, sequelize } from './models/index.js';
+import { Category, Product, ProductImage, ProductSpec, ProductVariant, sequelize } from './models/index.js';
 
 const categories = [
   {
@@ -338,6 +338,63 @@ const products = [
   },
 ];
 
+const variantCategorySlugs = new Set(['camera', 'video-camera']);
+
+const buildSeedVariants = (item) => {
+  if (Array.isArray(item.variants) && item.variants.length > 0) {
+    return item.variants;
+  }
+
+  if (!variantCategorySlugs.has(item.category_slug)) {
+    return [
+      {
+        variant_key: 'body',
+        name: item.name,
+        sku: `${item.sku}-STD`.slice(0, 120),
+        price: item.price,
+        original_price: item.original_price,
+        stock_quantity: item.stock_quantity,
+        image_url: item.images[0] || null,
+        sort_order: 0,
+        is_default: true,
+        is_active: true,
+      },
+    ];
+  }
+
+  const bodyStock = Math.ceil(item.stock_quantity * 0.6);
+  const kitStock = Math.max(item.stock_quantity - bodyStock, 0);
+  const kitPrice = item.price + 6500000;
+  const kitOriginalPrice = item.original_price ? item.original_price + 6500000 : null;
+
+  return [
+    {
+      variant_key: 'body',
+      name: `${item.name} Body Only`,
+      sku: `${item.sku}-BODY`.slice(0, 120),
+      price: item.price,
+      original_price: item.original_price,
+      stock_quantity: bodyStock,
+      image_url: item.images[0] || null,
+      sort_order: 0,
+      is_default: true,
+      is_active: true,
+    },
+    {
+      variant_key: 'kit',
+      name: `${item.name} + Lens Kit`,
+      sku: `${item.sku}-KIT`.slice(0, 120),
+      price: kitPrice,
+      original_price: kitOriginalPrice,
+      stock_quantity: kitStock,
+      image_url: item.images[1] || item.images[0] || null,
+      sort_order: 1,
+      is_default: false,
+      is_active: true,
+    },
+  ];
+};
+
 const upsertCategory = async (category) => {
   const [record] = await Category.findOrCreate({
     where: { slug: category.slug },
@@ -379,6 +436,7 @@ const seedProduct = async (item, categoryMap) => {
   await product.update(payload);
   await ProductImage.destroy({ where: { product_id: product.id } });
   await ProductSpec.destroy({ where: { product_id: product.id } });
+  await ProductVariant.destroy({ where: { product_id: product.id } });
 
   await ProductImage.bulkCreate(
     item.images.map((image_url, index) => ({
@@ -397,6 +455,17 @@ const seedProduct = async (item, categoryMap) => {
       sort_order: index,
     }))
   );
+
+  const variants = buildSeedVariants(item);
+  await ProductVariant.bulkCreate(
+    variants.map((variant) => ({
+      ...variant,
+      product_id: product.id,
+    }))
+  );
+
+  const variantStock = variants.reduce((sum, variant) => sum + Number(variant.stock_quantity || 0), 0);
+  await product.update({ stock_quantity: variantStock });
 };
 
 export const run = async () => {

@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS order_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT NOT NULL,
   product_id INT NOT NULL,
+  variant_id INT NULL,
+  variant_key VARCHAR(50) NULL,
+  variant_name VARCHAR(255) NULL,
   product_name VARCHAR(255) NOT NULL,
   product_price DECIMAL(15,0) NOT NULL,
   product_image VARCHAR(500) NULL,
@@ -41,6 +44,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_order_items_order_id (order_id),
   INDEX idx_order_items_product_id (product_id),
+  INDEX idx_order_items_variant_id (variant_id),
   CONSTRAINT fk_order_items_order_id
     FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE

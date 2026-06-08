@@ -3,6 +3,7 @@ import Category from './category.js';
 import Product from './product.js';
 import ProductImage from './productImage.js';
 import ProductSpec from './productSpec.js';
+import ProductVariant from './productVariant.js';
 import Wishlist from './wishlist.js';
 
 Category.hasMany(Category, {
@@ -53,6 +54,18 @@ ProductSpec.belongsTo(Product, {
   foreignKey: 'product_id',
 });
 
+Product.hasMany(ProductVariant, {
+  as: 'variants',
+  foreignKey: 'product_id',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE',
+});
+
+ProductVariant.belongsTo(Product, {
+  as: 'product',
+  foreignKey: 'product_id',
+});
+
 Product.hasMany(Wishlist, {
   as: 'wishlists',
   foreignKey: 'product_id',
@@ -65,7 +78,7 @@ Wishlist.belongsTo(Product, {
   foreignKey: 'product_id',
 });
 
-export { sequelize, Category, Product, ProductImage, ProductSpec, Wishlist };
+export { sequelize, Category, Product, ProductImage, ProductSpec, ProductVariant, Wishlist };
 
 export default {
   sequelize,
@@ -73,5 +86,6 @@ export default {
   Product,
   ProductImage,
   ProductSpec,
+  ProductVariant,
   Wishlist,
 };

@@ -21,6 +21,21 @@ OrderItem.init(
         min: 1,
       },
     },
+    variant_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+      },
+    },
+    variant_key: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    variant_name: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     product_name: {
       type: DataTypes.STRING(255),
       allowNull: false,
@@ -59,6 +74,7 @@ OrderItem.init(
     indexes: [
       { fields: ['order_id'] },
       { fields: ['product_id'] },
+      { fields: ['variant_id'] },
     ],
   }
 );

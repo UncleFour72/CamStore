@@ -183,7 +183,10 @@ const buildItemsFromCart = async (cart) => {
   const orderItems = [];
 
   for (const item of cart.items) {
-    const snapshot = await getProductSnapshot(item.product_id);
+    const snapshot = await getProductSnapshot(item.product_id, {
+      variantId: item.variant_id,
+      variantKey: item.variant_key,
+    });
     const quantity = toPositiveInt(item.quantity);
 
     if (!quantity || snapshot.stock_quantity < quantity) {
@@ -192,14 +195,15 @@ const buildItemsFromCart = async (cart) => {
       throw error;
     }
 
-    const requestedPrice = toMoney(item.product_price ?? item.variant_price, null);
-    const productPrice =
-      requestedPrice !== null && requestedPrice >= snapshot.price ? requestedPrice : snapshot.price;
-    const productName = String(item.product_name || item.variant_name || snapshot.name).trim();
-    const productImage = item.product_image || item.variant_image || snapshot.image;
+    const productPrice = snapshot.price;
+    const productName = String(snapshot.variant_name || snapshot.name).trim();
+    const productImage = snapshot.image;
 
     orderItems.push({
       product_id: snapshot.id,
+      variant_id: snapshot.variant_id,
+      variant_key: snapshot.variant_key,
+      variant_name: snapshot.variant_name,
       product_name: productName || snapshot.name,
       product_price: productPrice,
       product_image: productImage,
@@ -222,7 +226,10 @@ const buildItemsFromManualInput = async (items) => {
       throw error;
     }
 
-    const snapshot = await getProductSnapshot(item.product_id);
+    const snapshot = await getProductSnapshot(item.product_id, {
+      variantId: item.variant_id ?? item.variantId,
+      variantKey: item.variant_key ?? item.variantKey,
+    });
 
     if (snapshot.stock_quantity < item.quantity) {
       const error = new Error(`Product ${snapshot.name} does not have enough stock`);
@@ -230,14 +237,15 @@ const buildItemsFromManualInput = async (items) => {
       throw error;
     }
 
-    const requestedPrice = toMoney(item.product_price ?? item.price, null);
-    const productPrice =
-      requestedPrice !== null && requestedPrice >= snapshot.price ? requestedPrice : snapshot.price;
-    const productName = String(item.product_name || item.name || snapshot.name).trim();
-    const productImage = item.product_image || item.image || snapshot.image;
+    const productPrice = snapshot.price;
+    const productName = String(snapshot.variant_name || snapshot.name).trim();
+    const productImage = snapshot.image;
 
     orderItems.push({
       product_id: snapshot.id,
+      variant_id: snapshot.variant_id,
+      variant_key: snapshot.variant_key,
+      variant_name: snapshot.variant_name,
       product_name: productName || snapshot.name,
       product_price: productPrice,
       product_image: productImage,
@@ -358,13 +366,13 @@ const deductStockWithCompensation = async (items) => {
 
   try {
     for (const item of items) {
-      await decrementStock(item.product_id, item.quantity);
+      await decrementStock(item.product_id, item.quantity, item);
       deducted.push(item);
     }
   } catch (error) {
     for (const item of deducted.reverse()) {
       try {
-        await incrementStock(item.product_id, item.quantity);
+        await incrementStock(item.product_id, item.quantity, item);
       } catch (compensationError) {
         console.error('Stock compensation failed:', compensationError);
       }
@@ -887,7 +895,7 @@ export const cancelOrder = async (req, res, next) => {
     }
 
     for (const item of order.items || []) {
-      await incrementStock(item.product_id, Number(item.quantity));
+      await incrementStock(item.product_id, Number(item.quantity), item);
     }
 
     transaction = await sequelize.transaction();

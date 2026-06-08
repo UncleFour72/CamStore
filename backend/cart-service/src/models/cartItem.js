@@ -21,6 +21,13 @@ CartItem.init(
         min: 1,
       },
     },
+    variant_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+      },
+    },
     product_name: {
       type: DataTypes.STRING(255),
       allowNull: false,
@@ -78,6 +85,7 @@ CartItem.init(
     indexes: [
       { fields: ['cart_id'] },
       { fields: ['product_id'] },
+      { fields: ['variant_id'] },
       { name: 'uq_cart_items_cart_product_variant', fields: ['cart_id', 'product_id', 'variant_key'], unique: true },
     ],
   }

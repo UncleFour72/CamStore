@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
-import { Category, sequelize } from './models/index.js';
+import { Category, Product, ProductImage, ProductVariant, sequelize } from './models/index.js';
 import productRoutes from './routes/productRoutes.js';
 import { makeSlug } from './controllers/productController.js';
 
@@ -48,6 +48,49 @@ const bootstrapCategories = async () => {
     await Category.findOrCreate({
       where: { slug: category.slug || makeSlug(category.name) },
       defaults: category,
+    });
+  }
+};
+
+const bootstrapDefaultVariants = async () => {
+  const products = await Product.findAll({
+    include: [
+      {
+        model: ProductVariant,
+        as: 'variants',
+        attributes: ['id'],
+      },
+      {
+        model: ProductImage,
+        as: 'images',
+        separate: true,
+        order: [
+          ['is_primary', 'DESC'],
+          ['sort_order', 'ASC'],
+          ['id', 'ASC'],
+        ],
+      },
+    ],
+  });
+
+  for (const product of products) {
+    if (product.variants?.length) {
+      continue;
+    }
+
+    const primaryImage = product.images?.[0]?.image_url || null;
+    await ProductVariant.create({
+      product_id: product.id,
+      variant_key: 'body',
+      name: product.name,
+      sku: product.sku ? `${product.sku}-BODY`.slice(0, 120) : null,
+      price: product.price,
+      original_price: product.original_price,
+      stock_quantity: product.stock_quantity,
+      image_url: primaryImage,
+      sort_order: 0,
+      is_default: true,
+      is_active: true,
     });
   }
 };
@@ -115,6 +158,7 @@ const start = async () => {
   }
 
   await bootstrapCategories();
+  await bootstrapDefaultVariants();
 
   app.listen(port, () => {
     console.log(`Product Service running on port ${port}`);

@@ -20,8 +20,6 @@ import { fetchWishlist, toggleWishlist } from '../store/slices/wishlistSlice.js'
 import { formatPrice } from '../utils/helpers.js';
 
 const BUY_NOW_KEY = 'camstore_buy_now_checkout';
-const CAMERA_CATEGORY_KEYS = ['camera', 'video-camera'];
-const KIT_PRICE_DELTA = 6500000;
 
 const fallbackGallery = [
   assets.heroCamera,
@@ -45,44 +43,49 @@ const fillImages = (images = [], variant = 'body') => {
   return uniqueImages([...images, ...variantFallbacks]).slice(0, 6);
 };
 
-const isCameraProduct = (product) => {
-  const category = String(product?.category || '').toLowerCase();
-  const categoryName = String(product?.categoryName || '').toLowerCase();
-
-  return CAMERA_CATEGORY_KEYS.includes(category) || categoryName.includes('máy ảnh') || categoryName.includes('camera');
-};
-
 const buildProductVariants = (product) => {
   if (!product) {
     return [];
   }
 
-  const bodyGallery = fillImages(product.gallery?.length ? product.gallery : [product.image], 'body');
-  const basePrice = product.detailPrice || product.price;
-  const bodyVariant = {
-    id: 'body',
-    label: 'Chỉ thân máy (Body Only)',
-    name: product.detailName || product.name,
-    price: basePrice,
-    mainImage: bodyGallery[0],
-    thumbnails: bodyGallery.slice(1, 6),
-  };
+  const baseGallery = product.gallery?.length ? product.gallery : [product.image];
+  const apiVariants = Array.isArray(product.variants)
+    ? product.variants.filter((variant) => variant.isActive !== false)
+    : [];
 
-  if (!isCameraProduct(product)) {
-    return [bodyVariant];
+  if (apiVariants.length > 0) {
+    return apiVariants.map((variant) => {
+      const gallery = fillImages([variant.image, ...baseGallery], variant.key || variant.id);
+
+      return {
+        id: variant.id,
+        variantId: variant.variantId,
+        key: variant.key || 'body',
+        label: variant.label || variant.name,
+        name: variant.name || product.detailName || product.name,
+        price: variant.price || product.detailPrice || product.price,
+        stock: Number(variant.stock || 0),
+        mainImage: variant.image || gallery[0],
+        thumbnails: gallery.slice(1, 6),
+        isDefault: variant.isDefault,
+      };
+    });
   }
 
-  const kitGallery = fillImages([product.image, assets.lensDark, ...(product.gallery || [])], 'kit');
+  const bodyGallery = fillImages(baseGallery, 'body');
 
   return [
-    bodyVariant,
     {
-      id: 'kit',
-      label: 'Body + Lens 28-70mm Kit',
-      name: `${product.detailName || product.name} + Lens 28-70mm Kit`,
-      price: basePrice + KIT_PRICE_DELTA,
-      mainImage: kitGallery[0],
-      thumbnails: kitGallery.slice(1, 6),
+      id: 'body',
+      variantId: null,
+      key: 'body',
+      label: 'Chỉ thân máy (Body Only)',
+      name: product.detailName || product.name,
+      price: product.detailPrice || product.price,
+      stock: Number(product.stock || 0),
+      mainImage: bodyGallery[0],
+      thumbnails: bodyGallery.slice(1, 6),
+      isDefault: true,
     },
   ];
 };
@@ -120,7 +123,6 @@ export default function ProductDetailPage() {
       return;
     }
 
-    setCombo('body');
     dispatch(fetchProducts({ category: product.category, limit: 4, sort: 'popular' }));
     dispatch(fetchProductReviews({ productId: product.productId || product.apiId, page: 1, pageSize: 5 }));
 
@@ -155,6 +157,13 @@ export default function ProductDetailPage() {
   const selectedVariant = useMemo(() => {
     return productVariants.find((variant) => variant.id === combo) || productVariants[0] || null;
   }, [combo, productVariants]);
+
+  useEffect(() => {
+    if (productVariants.length > 0) {
+      const defaultVariant = productVariants.find((variant) => variant.isDefault) || productVariants[0];
+      setCombo(defaultVariant.id);
+    }
+  }, [product?.id, productVariants]);
 
   useEffect(() => {
     if (selectedVariant) {
@@ -214,7 +223,8 @@ export default function ProductDetailPage() {
 
     try {
       await addItem(product.productId || product.apiId || product.id, 1, {
-        key: selectedVariant?.id || 'body',
+        id: selectedVariant?.variantId,
+        key: selectedVariant?.key || selectedVariant?.id || 'body',
         name: selectedVariant?.name || product.name,
         label: selectedVariant?.label || 'Body Only',
         price: selectedVariant?.price || product.price,
@@ -248,6 +258,9 @@ export default function ProductDetailPage() {
     const item = {
       id: `buy-now-${productApiId}-${selectedVariant.id}`,
       productId: productApiId,
+      variantId: selectedVariant.variantId,
+      variantKey: selectedVariant.key || selectedVariant.id,
+      variantName: selectedVariant.label || selectedVariant.name,
       quantity: 1,
       price: selectedVariant.price,
       subtotal: selectedVariant.price,
@@ -307,9 +320,7 @@ export default function ProductDetailPage() {
   const gallery = selectedVariant?.thumbnails?.length ? selectedVariant.thumbnails : product.gallery || [];
   const currentMainImage = selectedImage || selectedVariant?.mainImage || product.image;
   const currentPrice = selectedVariant?.price || product.detailPrice || product.price;
-  const basePrice = productVariants[0]?.price || product.detailPrice || product.price;
-  const kitPrice = productVariants.find((variant) => variant.id === 'kit')?.price || basePrice + KIT_PRICE_DELTA;
-  const stockQuantity = Number(product.stock || 0);
+  const stockQuantity = Number(selectedVariant?.stock ?? product.stock ?? 0);
   const specs = Array.isArray(product.specs) ? product.specs : [];
 
   return (
@@ -362,26 +373,18 @@ export default function ProductDetailPage() {
             {productVariants.length > 1 && (
             <div className="pdp-combos">
               <span>Lựa chọn combo</span>
-              <label className={combo === 'body' ? 'active' : ''}>
-                <input
-                  type="radio"
-                  name="combo"
-                  checked={combo === 'body'}
-                  onChange={() => setCombo('body')}
-                />
-                <p>Chỉ thân máy (Body Only)</p>
-                <strong>{formatPrice(basePrice)}</strong>
-              </label>
-              <label className={combo === 'kit' ? 'active' : ''}>
-                <input
-                  type="radio"
-                  name="combo"
-                  checked={combo === 'kit'}
-                  onChange={() => setCombo('kit')}
-                />
-                <p>Body + Lens 28-70mm Kit</p>
-                <strong>{formatPrice(kitPrice)}</strong>
-              </label>
+              {productVariants.map((variant) => (
+                <label className={combo === variant.id ? 'active' : ''} key={variant.id}>
+                  <input
+                    type="radio"
+                    name="combo"
+                    checked={combo === variant.id}
+                    onChange={() => setCombo(variant.id)}
+                  />
+                  <p>{variant.label}</p>
+                  <strong>{formatPrice(variant.price)}</strong>
+                </label>
+              ))}
             </div>
             )}
 

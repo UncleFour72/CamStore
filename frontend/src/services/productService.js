@@ -8,6 +8,34 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const normalizeVariant = (variant, fallback = {}) => {
+  if (!variant) {
+    return null;
+  }
+
+  const price = toNumber(variant.price, fallback.price || 0);
+  const originalPrice = toNumber(variant.original_price, fallback.originalPrice || price);
+  const key = variant.variant_key || variant.key || String(variant.id || 'body');
+
+  return {
+    ...variant,
+    id: String(variant.id || key),
+    variantId: variant.id || null,
+    key,
+    label: variant.name || variant.variant_name || fallback.name || 'Tuy chon',
+    name: variant.name || variant.variant_name || fallback.name || 'Tuy chon',
+    price,
+    originalPrice,
+    stock: Number.isInteger(variant.stock_quantity)
+      ? variant.stock_quantity
+      : toNumber(variant.stock_quantity, fallback.stock || 0),
+    image: variant.image_url || fallback.image || FALLBACK_IMAGE,
+    isDefault: Boolean(variant.is_default),
+    isActive: variant.is_active !== false,
+    sortOrder: Number.isInteger(variant.sort_order) ? variant.sort_order : 0,
+  };
+};
+
 const buildProductParams = (params = {}) => {
   const result = { ...params };
 
@@ -65,6 +93,19 @@ export const normalizeProduct = (product) => {
   const category = normalizeCategory(product.category);
   const price = toNumber(product.price);
   const originalPrice = toNumber(product.original_price, price);
+  const variants = Array.isArray(product.variants)
+    ? product.variants
+        .map((variant) =>
+          normalizeVariant(variant, {
+            name: product.name,
+            price,
+            originalPrice,
+            stock: product.stock_quantity,
+            image: primaryImage,
+          })
+        )
+        .filter(Boolean)
+    : [];
 
   return {
     ...product,
@@ -84,6 +125,7 @@ export const normalizeProduct = (product) => {
     detailPrice: price,
     oldPrice: originalPrice,
     stock: Number.isInteger(product.stock_quantity) ? product.stock_quantity : toNumber(product.stock_quantity),
+    variants,
     rating: toNumber(product.average_rating),
     reviews: Number.isInteger(product.total_reviews) ? product.total_reviews : toNumber(product.total_reviews),
     specs: Array.isArray(product.specs)

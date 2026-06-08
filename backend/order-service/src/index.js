@@ -76,8 +76,37 @@ app.use((error, req, res, next) => {
   });
 });
 
+const ensureOrderItemVariantColumns = async () => {
+  const [tables] = await sequelize.query("SHOW TABLES LIKE 'order_items'");
+
+  if (tables.length === 0) {
+    return;
+  }
+
+  const [columns] = await sequelize.query('SHOW COLUMNS FROM order_items');
+  const existingColumns = new Set(columns.map((column) => column.Field));
+
+  const addColumn = async (name, definition) => {
+    if (!existingColumns.has(name)) {
+      await sequelize.query(`ALTER TABLE order_items ADD COLUMN ${name} ${definition}`);
+    }
+  };
+
+  await addColumn('variant_id', 'INT NULL AFTER product_id');
+  await addColumn('variant_key', 'VARCHAR(50) NULL AFTER variant_id');
+  await addColumn('variant_name', 'VARCHAR(255) NULL AFTER variant_key');
+
+  const [indexes] = await sequelize.query('SHOW INDEX FROM order_items');
+  const indexNames = new Set(indexes.map((index) => index.Key_name));
+
+  if (!indexNames.has('idx_order_items_variant_id')) {
+    await sequelize.query('ALTER TABLE order_items ADD INDEX idx_order_items_variant_id (variant_id)');
+  }
+};
+
 const start = async () => {
   await sequelize.authenticate();
+  await ensureOrderItemVariantColumns();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
