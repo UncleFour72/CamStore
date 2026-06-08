@@ -48,6 +48,7 @@ const MESSAGE_MAP = {
   'Payment is already completed or refunded': 'Giao dịch đã hoàn tất hoặc đã hoàn tiền.',
   'Online payment record is required before updating order status': 'Đơn online cần có giao dịch thanh toán trước khi cập nhật trạng thái.',
   'Online payment must be completed before updating order status': 'Đơn thanh toán online phải hoàn tất thanh toán trước khi xử lý.',
+  'Paid orders must be refunded before cancellation': 'Đơn đã thanh toán phải xử lý hoàn tiền trước khi hủy.',
   'Mock payment is not enabled for this payment method': 'Phương thức này chưa bật giả lập thanh toán.',
   'Refund not found': 'Không tìm thấy yêu cầu hoàn tiền.',
   'Only completed payments can be refunded': 'Chỉ giao dịch đã hoàn tất mới được hoàn tiền.',

@@ -3,6 +3,7 @@ import { clearCartForUser, getCartForUser } from '../clients/cartClient.js';
 import {
   completeCodPaymentForDelivery,
   createPayment,
+  expireUnpaidPayment,
   getPaymentByOrderId,
   retryPayment,
 } from '../clients/paymentClient.js';
@@ -22,6 +23,7 @@ const ORDER_STATUS_TRANSITIONS = {
 const ONLINE_PAYMENT_METHODS = ['cod', 'vnpay', 'momo', 'bank_transfer'];
 const INSTORE_PAYMENT_METHODS = ['cash', 'bank_transfer', 'pos_card'];
 const PREPAID_ONLINE_PAYMENT_METHODS = ['vnpay', 'momo', 'bank_transfer'];
+const PAID_PAYMENT_STATUSES = ['completed', 'refunded'];
 const CUSTOMER_CANCEL_WINDOW_MINUTES = Number(process.env.CUSTOMER_CANCEL_WINDOW_MINUTES || 60);
 const SHIPPING_FIELDS = [
   'shipping_name',
@@ -583,6 +585,47 @@ const ensureOnlinePaymentCompletedBeforeFulfillment = async (order, nextStatus) 
   }
 };
 
+const getOrderPayment = async (orderId) => {
+  const data = await getPaymentByOrderId(orderId);
+  return data?.payment || null;
+};
+
+const ensureDirectCancellationAllowed = async (order) => {
+  const payment = await getOrderPayment(order.id);
+
+  if (payment && PAID_PAYMENT_STATUSES.includes(payment.status)) {
+    throw statusConflict('Paid orders must be refunded before cancellation');
+  }
+
+  return payment;
+};
+
+const restoreStockForOrder = async (orderOrId) => {
+  const orderId = typeof orderOrId === 'object' ? orderOrId.id : orderOrId;
+  const items =
+    typeof orderOrId === 'object' && Array.isArray(orderOrId.items)
+      ? orderOrId.items
+      : await OrderItem.findAll({ where: { order_id: orderId } });
+
+  for (const item of items || []) {
+    try {
+      await incrementStock(item.product_id, Number(item.quantity), item);
+    } catch (error) {
+      console.warn(`Stock restore failed for product ${item.product_id}:`, error.message);
+    }
+  }
+};
+
+const failUnpaidPaymentForOrder = async (orderId, reason) => {
+  try {
+    await expireUnpaidPayment(orderId, { reason });
+  } catch (error) {
+    if (error.statusCode !== 404) {
+      console.warn(`Payment expiry failed for order ${orderId}:`, error.message);
+    }
+  }
+};
+
 export const checkout = async (req, res, next) => {
   try {
     const purchaseChannel = req.body.purchase_channel || 'online';
@@ -854,6 +897,10 @@ export const updateOrderStatus = async (req, res, next) => {
       throw statusConflict(`Cannot change order status from ${order.status} to ${status}`);
     }
 
+    if (status === 'cancelled' && !allowRefundCancellation) {
+      await ensureDirectCancellationAllowed(order);
+    }
+
     await ensureOnlinePaymentCompletedBeforeFulfillment(order, status);
 
     const previousStatus = order.status;
@@ -876,6 +923,11 @@ export const updateOrderStatus = async (req, res, next) => {
           console.warn(`COD payment completion failed for order ${order.id}:`, error.message);
         }
       }
+    }
+
+    if (status === 'cancelled' && previousStatus !== status && !allowRefundCancellation) {
+      await restoreStockForOrder(order.id);
+      await failUnpaidPaymentForOrder(order.id, 'order_cancelled_before_payment');
     }
 
     if (previousStatus !== status) {
@@ -919,9 +971,7 @@ export const cancelOrder = async (req, res, next) => {
       });
     }
 
-    for (const item of order.items || []) {
-      await incrementStock(item.product_id, Number(item.quantity), item);
-    }
+    await ensureDirectCancellationAllowed(order);
 
     transaction = await sequelize.transaction();
     const current = await Order.findByPk(order.id, {
@@ -949,6 +999,9 @@ export const cancelOrder = async (req, res, next) => {
     );
     await transaction.commit();
     transaction = null;
+
+    await restoreStockForOrder(order);
+    await failUnpaidPaymentForOrder(order.id, 'customer_cancelled_pending_order');
 
     const freshOrder = await findOrderByIdOrNumber(order.id);
     return res.json({ order: await attachPaymentToOrder(freshOrder) });

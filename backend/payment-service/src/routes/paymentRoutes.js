@@ -13,6 +13,7 @@ import {
   handleVnpayIpn,
   handleVnpayReturn,
   expireBankTransferPayment,
+  expireUnpaidPayment,
   retryPaymentRecord,
   updateRefundStatus,
 } from '../controllers/paymentController.js';
@@ -38,6 +39,7 @@ router.get('/payments', authenticate, requireAdmin, getPayments);
 router.get('/payments/order/:orderId', optionalAuthenticate, requireInternalOrAdmin, getPaymentByOrderId);
 router.patch('/payments/order/:orderId/retry', requireInternal, retryPaymentRecord);
 router.patch('/payments/order/:orderId/complete-cod', requireInternal, completeCodPaymentForDelivery);
+router.patch('/payments/order/:orderId/expire-unpaid', requireInternal, expireUnpaidPayment);
 router.patch('/payments/order/:orderId/expire-bank-transfer', requireInternal, expireBankTransferPayment);
 router.patch('/payments/:id/confirm-bank-transfer', authenticate, requireAdmin, confirmBankTransferPayment);
 router.get('/payments/:id', optionalAuthenticate, requireInternalOrAdmin, getPaymentById);

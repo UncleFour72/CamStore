@@ -37,13 +37,15 @@ export const completeCodPaymentForDelivery = async (orderId, payload = {}) => {
   });
 };
 
-export const expireBankTransferPayment = async (orderId, payload = {}) => {
-  return requestJson(`${PAYMENT_SERVICE_URL}/api/payments/order/${orderId}/expire-bank-transfer`, {
+export const expireUnpaidPayment = async (orderId, payload = {}) => {
+  return requestJson(`${PAYMENT_SERVICE_URL}/api/payments/order/${orderId}/expire-unpaid`, {
     method: 'PATCH',
     headers: internalHeaders(),
     body: JSON.stringify(payload),
   });
 };
+
+export const expireBankTransferPayment = expireUnpaidPayment;
 
 export const getPaymentByOrderId = async (orderId) => {
   try {

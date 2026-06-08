@@ -7,6 +7,7 @@ import { createVnpayPaymentUrl, isVnpaySuccess, verifyVnpayCallback } from '../u
 const PAYMENT_METHODS = ['cod', 'vnpay', 'momo', 'cash', 'bank_transfer', 'pos_card'];
 const DIRECT_COMPLETED_METHODS = ['cash', 'pos_card'];
 const ONLINE_GATEWAY_METHODS = ['vnpay', 'momo'];
+const EXPIRABLE_UNPAID_METHODS = ['cod', 'vnpay', 'momo', 'bank_transfer'];
 
 const isPlaceholder = (value) => !value || String(value).startsWith('your_');
 
@@ -536,7 +537,7 @@ export const confirmBankTransferPayment = async (req, res, next) => {
   }
 };
 
-export const expireBankTransferPayment = async (req, res, next) => {
+export const expireUnpaidPayment = async (req, res, next) => {
   try {
     const orderId = toPositiveInt(req.params.orderId);
 
@@ -553,8 +554,8 @@ export const expireBankTransferPayment = async (req, res, next) => {
       return res.status(404).json({ message: 'Payment not found' });
     }
 
-    if (payment.payment_method !== 'bank_transfer') {
-      return res.json({ payment, changed: false, reason: 'payment_method_not_bank_transfer' });
+    if (!EXPIRABLE_UNPAID_METHODS.includes(payment.payment_method)) {
+      return res.json({ payment, changed: false, reason: 'payment_method_not_expirable' });
     }
 
     if (['completed', 'refunded'].includes(payment.status)) {
@@ -566,7 +567,7 @@ export const expireBankTransferPayment = async (req, res, next) => {
     }
 
     payment.appendCallbackData({
-      provider: 'bank_transfer',
+      provider: payment.payment_method,
       status: 'expired',
       reason: req.body.reason || null,
     });
@@ -586,6 +587,8 @@ export const expireBankTransferPayment = async (req, res, next) => {
     return next(error);
   }
 };
+
+export const expireBankTransferPayment = expireUnpaidPayment;
 
 export const completeCodPaymentForDelivery = async (req, res, next) => {
   try {
