@@ -17,7 +17,7 @@ const getBearerToken = (req) => {
   return authorization.slice('Bearer '.length).trim();
 };
 
-const verifyJwt = (token) => {
+export const verifyJwt = (token) => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {

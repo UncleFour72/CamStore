@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import { Notification } from '../models/index.js';
+import { broadcastNotification, broadcastUnreadCount } from '../websocket/notificationSocket.js';
 
 const toPositiveInt = (value, fallback = null) => {
   const parsed = Number.parseInt(value, 10);
@@ -18,6 +19,20 @@ const normalizeNotification = (notification) => {
     is_read: Boolean(plain.read_at),
   };
 };
+
+const countUnread = async (scope) => {
+  return Notification.count({
+    where: {
+      ...scope,
+      read_at: { [Op.is]: null },
+    },
+  });
+};
+
+const getNotificationScope = (notification) => ({
+  recipient_type: notification.recipient_type,
+  recipient_id: notification.recipient_type === 'admin' ? null : Number(notification.recipient_id),
+});
 
 const resolveScope = (req) => {
   const scope = req.query.scope || (req.auth?.role === 'admin' ? 'admin' : 'user');
@@ -72,11 +87,14 @@ const createOne = async (payload) => {
     const existing = await Notification.findOne({ where: { dedupe_key: data.dedupe_key } });
 
     if (existing) {
-      return existing;
+      return { notification: existing, created: false };
     }
   }
 
-  return Notification.create(data);
+  return {
+    notification: await Notification.create(data),
+    created: true,
+  };
 };
 
 export const createNotification = async (req, res, next) => {
@@ -85,11 +103,21 @@ export const createNotification = async (req, res, next) => {
     const notifications = [];
 
     for (const payload of payloads) {
-      notifications.push(await createOne(payload));
+      const result = await createOne(payload);
+      const normalized = normalizeNotification(result.notification);
+      notifications.push(normalized);
+
+      if (result.created) {
+        const scope = getNotificationScope(result.notification);
+        broadcastNotification({
+          notification: normalized,
+          unreadCount: await countUnread(scope),
+        });
+      }
     }
 
     return res.status(201).json({
-      notifications: notifications.map(normalizeNotification),
+      notifications,
     });
   } catch (error) {
     return next(error);
@@ -115,12 +143,7 @@ export const getNotifications = async (req, res, next) => {
       order: [['created_at', 'DESC']],
     });
 
-    const unreadCount = await Notification.count({
-      where: {
-        ...scope,
-        read_at: { [Op.is]: null },
-      },
-    });
+    const unreadCount = await countUnread(scope);
 
     return res.json({
       notifications: rows.map(normalizeNotification),
@@ -140,12 +163,7 @@ export const getNotifications = async (req, res, next) => {
 export const getUnreadCount = async (req, res, next) => {
   try {
     const scope = resolveScope(req);
-    const unreadCount = await Notification.count({
-      where: {
-        ...scope,
-        read_at: { [Op.is]: null },
-      },
-    });
+    const unreadCount = await countUnread(scope);
 
     return res.json({ unread_count: unreadCount });
   } catch (error) {
@@ -171,7 +189,14 @@ export const markNotificationRead = async (req, res, next) => {
       await notification.update({ read_at: new Date() });
     }
 
-    return res.json({ notification: normalizeNotification(notification) });
+    const normalized = normalizeNotification(notification);
+    broadcastUnreadCount({
+      recipientType: scope.recipient_type,
+      recipientId: scope.recipient_id,
+      unreadCount: await countUnread(scope),
+    });
+
+    return res.json({ notification: normalized });
   } catch (error) {
     return next(error);
   }
@@ -189,6 +214,12 @@ export const markAllNotificationsRead = async (req, res, next) => {
         },
       }
     );
+
+    broadcastUnreadCount({
+      recipientType: scope.recipient_type,
+      recipientId: scope.recipient_id,
+      unreadCount: await countUnread(scope),
+    });
 
     return res.json({ updated });
   } catch (error) {

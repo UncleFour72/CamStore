@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { ensureDatabaseExists } from './config/database.js';
 import { sequelize } from './models/index.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import { setupNotificationWebSocket } from './websocket/notificationSocket.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -84,9 +85,11 @@ const start = async () => {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`Notification Service running on port ${port}`);
   });
+
+  setupNotificationWebSocket(server, { allowedOrigins });
 };
 
 start().catch((error) => {

@@ -1,4 +1,92 @@
-import api, { unwrapData } from './api.js';
+import { io } from 'socket.io-client';
+import api, { TOKEN_KEY, unwrapData } from './api.js';
+
+const getSocketConfig = () => {
+  const configuredSocketUrl = import.meta.env.VITE_NOTIFICATION_SOCKET_URL;
+  const configuredSocketPath = import.meta.env.VITE_NOTIFICATION_SOCKET_PATH;
+  const legacyWsUrl = import.meta.env.VITE_NOTIFICATION_WS_URL;
+
+  if (configuredSocketUrl) {
+    return {
+      url: configuredSocketUrl,
+      path: configuredSocketPath || '/ws/notifications',
+    };
+  }
+
+  if (legacyWsUrl) {
+    const url = new URL(legacyWsUrl);
+    const path = url.pathname || '/ws/notifications';
+    url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+    url.pathname = '';
+    url.search = '';
+
+    return {
+      url: url.toString().replace(/\/$/, ''),
+      path,
+    };
+  }
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+  const url = new URL(apiBaseUrl);
+  const isLocalGateway = ['localhost', '127.0.0.1'].includes(url.hostname) && url.port === '3000';
+
+  if (isLocalGateway) {
+    url.port = '3008';
+  }
+
+  url.pathname = '';
+  url.search = '';
+
+  return {
+    url: url.toString().replace(/\/$/, ''),
+    path: configuredSocketPath || '/ws/notifications',
+  };
+};
+
+export const connectNotificationSocket = ({ scope = 'user', onNotification, onUnreadCount, onError } = {}) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  if (!token) {
+    return () => {};
+  }
+
+  const { url, path } = getSocketConfig();
+  const socket = io(url, {
+    path,
+    auth: {
+      token,
+      scope,
+    },
+    query: {
+      scope,
+    },
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 30000,
+  });
+
+  socket.on('notification.created', (payload = {}) => {
+    onNotification?.(payload.notification, Number(payload.unread_count || 0));
+  });
+
+  socket.on('notification.unread_count', (payload = {}) => {
+    onUnreadCount?.(Number(payload.unread_count || 0));
+  });
+
+  socket.on('connect_error', (error) => {
+    onError?.(error);
+
+    if (error.message === 'Unauthorized') {
+      socket.disconnect();
+    }
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+};
 
 export const getNotifications = async ({ scope = 'user', page = 1, limit = 8, unread = false } = {}) => {
   const data = await api

@@ -70,6 +70,29 @@ export default function NotificationBell({ scope = 'user', className = '' }) {
   }, [canRender, scope]);
 
   useEffect(() => {
+    if (!canRender) {
+      return undefined;
+    }
+
+    return notificationService.connectNotificationSocket({
+      scope,
+      onNotification(notification, nextUnreadCount) {
+        setUnreadCount(nextUnreadCount);
+        setNotifications((current) => {
+          if (!notification || current.some((item) => Number(item.id) === Number(notification.id))) {
+            return current;
+          }
+
+          return [notification, ...current].slice(0, 8);
+        });
+      },
+      onUnreadCount(nextUnreadCount) {
+        setUnreadCount(nextUnreadCount);
+      },
+    });
+  }, [canRender, scope]);
+
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false);
