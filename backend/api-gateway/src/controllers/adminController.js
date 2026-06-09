@@ -1,7 +1,8 @@
 import { services } from '../config/services.js';
 import { fetchAllPages, requestJson } from '../utils/http.js';
 
-const ACTIVE_REVENUE_STATUSES = ['pending', 'confirmed', 'processing', 'shipping', 'delivered'];
+const REVENUE_ORDER_STATUSES = ['delivered'];
+const REVENUE_PAYMENT_STATUSES = ['completed'];
 const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'];
 
 const toPositiveInt = (value, fallback = null) => {
@@ -71,8 +72,25 @@ const isWithinRange = (value, range) => {
   return date >= range.from && date <= range.to;
 };
 
+const getPaymentStatus = (order) => {
+  return order.payment?.status || order.payment_status || null;
+};
+
+const getDeliveredAt = (order) => {
+  const histories = Array.isArray(order.status_history) ? order.status_history : [];
+  const deliveredHistory = histories
+    .filter((history) => history.status === 'delivered' && history.changed_at)
+    .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))[0];
+
+  return order.delivered_at || deliveredHistory?.changed_at || null;
+};
+
+const getRevenueDate = (order) => {
+  return getDeliveredAt(order) || order.updated_at || order.payment?.paid_at || order.paid_at || order.created_at;
+};
+
 const canCountAsRevenue = (order) => {
-  return ACTIVE_REVENUE_STATUSES.includes(order.status);
+  return REVENUE_ORDER_STATUSES.includes(order.status) && REVENUE_PAYMENT_STATUSES.includes(getPaymentStatus(order));
 };
 
 const sumOrderRevenue = (orders) => {
@@ -81,13 +99,22 @@ const sumOrderRevenue = (orders) => {
     .reduce((sum, order) => sum + toNumber(order.total_amount), 0);
 };
 
+const filterRevenueOrders = (orders) => orders.filter(canCountAsRevenue);
+
+const filterRevenueOrdersInRange = (orders, range) => {
+  return filterRevenueOrders(orders).filter((order) => isWithinRange(getRevenueDate(order), range));
+};
+
 const getOrders = async (req, query = {}) => {
   return fetchAllPages({
     baseUrl: services.order,
     path: '/api/orders',
     dataKey: 'orders',
     req,
-    query,
+    query: {
+      include_history: true,
+      ...query,
+    },
   });
 };
 
@@ -114,11 +141,13 @@ const buildRevenueChart = (orders, days = 7) => {
       to: endOfDay(day),
     };
     const dayOrders = orders.filter((order) => isWithinRange(order.created_at, range));
+    const dayRevenueOrders = filterRevenueOrdersInRange(orders, range);
 
     points.push({
       date: day.toISOString().slice(0, 10),
-      revenue: sumOrderRevenue(dayOrders),
-      orders_count: dayOrders.length,
+      revenue: sumOrderRevenue(dayRevenueOrders),
+      orders_count: dayRevenueOrders.length,
+      created_orders_count: dayOrders.length,
     });
   }
 
@@ -135,13 +164,16 @@ const buildWeeklyGrowth = (orders, weeks = 8) => {
     const from = startOfDay(new Date(to));
     from.setDate(to.getDate() - 6);
 
-    const weekOrders = orders.filter((order) => isWithinRange(order.created_at, { from, to }));
+    const range = { from, to };
+    const weekOrders = orders.filter((order) => isWithinRange(order.created_at, range));
+    const weekRevenueOrders = filterRevenueOrdersInRange(orders, range);
 
     points.push({
       week_start: from.toISOString().slice(0, 10),
       week_end: to.toISOString().slice(0, 10),
       orders_count: weekOrders.length,
-      revenue: sumOrderRevenue(weekOrders),
+      revenue_orders_count: weekRevenueOrders.length,
+      revenue: sumOrderRevenue(weekRevenueOrders),
     });
   }
 
@@ -152,7 +184,7 @@ const buildOrderAggregatesByUser = (orders) => {
   const map = new Map();
 
   for (const order of orders) {
-    if (!order.user_id || order.status === 'cancelled') {
+    if (!order.user_id || !canCountAsRevenue(order)) {
       continue;
     }
 
@@ -232,9 +264,12 @@ export const getDashboardSummary = async (req, res, next) => {
     const range = getRangeFromQuery(req.query);
     const [orders, users] = await Promise.all([getOrders(req), getUsers(req, { role: 'customer' })]);
     const ordersInRange = orders.filter((order) => isWithinRange(order.created_at, range));
+    const revenueOrdersInRange = filterRevenueOrdersInRange(orders, range);
     const usersInRange = users.filter((user) => isWithinRange(user.created_at, range));
     const visitors = toNumber(req.query.visitors, 0);
-    const orderCount = ordersInRange.length;
+    const createdOrderCount = ordersInRange.length;
+    const revenueOrderCount = revenueOrdersInRange.length;
+    const monthlyRevenue = sumOrderRevenue(revenueOrdersInRange);
 
     return res.json({
       range: {
@@ -242,11 +277,18 @@ export const getDashboardSummary = async (req, res, next) => {
         to: range.to.toISOString(),
       },
       metrics: {
-        monthly_revenue: sumOrderRevenue(ordersInRange),
-        orders_count: orderCount,
+        monthly_revenue: monthlyRevenue,
+        orders_count: revenueOrderCount,
+        completed_orders_count: revenueOrderCount,
+        created_orders_count: createdOrderCount,
+        average_order_value: revenueOrderCount > 0 ? Math.round(monthlyRevenue / revenueOrderCount) : 0,
         new_customers_count: usersInRange.length,
-        conversion_rate: visitors > 0 ? Number(((orderCount / visitors) * 100).toFixed(2)) : null,
+        conversion_rate: visitors > 0 ? Number(((createdOrderCount / visitors) * 100).toFixed(2)) : null,
         visitors_count: visitors || null,
+        revenue_rule: {
+          order_statuses: REVENUE_ORDER_STATUSES,
+          payment_statuses: REVENUE_PAYMENT_STATUSES,
+        },
       },
       revenue_chart: buildRevenueChart(orders, toPositiveInt(req.query.days, 7)),
       recent_orders: orders.slice(0, toPositiveInt(req.query.recent_limit, 5)),
@@ -260,15 +302,21 @@ export const getRevenueStats = async (req, res, next) => {
   try {
     const range = getRangeFromQuery(req.query);
     const orders = await getOrders(req);
-    const filtered = orders.filter((order) => isWithinRange(order.created_at, range));
+    const filtered = filterRevenueOrdersInRange(orders, range);
+    const revenue = sumOrderRevenue(filtered);
 
     return res.json({
       range: {
         from: range.from.toISOString(),
         to: range.to.toISOString(),
       },
-      revenue: sumOrderRevenue(filtered),
+      revenue,
       orders_count: filtered.length,
+      average_order_value: filtered.length > 0 ? Math.round(revenue / filtered.length) : 0,
+      revenue_rule: {
+        order_statuses: REVENUE_ORDER_STATUSES,
+        payment_statuses: REVENUE_PAYMENT_STATUSES,
+      },
     });
   } catch (error) {
     return next(error);
@@ -391,15 +439,15 @@ export const getUserOrderStats = async (req, res, next) => {
 
     const orders = await getOrders(req, { user_id: userId });
     const activeOrders = orders.filter((order) => order.status !== 'cancelled');
+    const revenueOrders = filterRevenueOrders(orders);
+    const totalSpent = sumOrderRevenue(revenueOrders);
 
     return res.json({
       user_id: userId,
       orders_count: activeOrders.length,
-      total_spent: sumOrderRevenue(activeOrders),
-      average_order_value:
-        activeOrders.length > 0
-          ? Math.round(sumOrderRevenue(activeOrders) / activeOrders.length)
-          : 0,
+      revenue_orders_count: revenueOrders.length,
+      total_spent: totalSpent,
+      average_order_value: revenueOrders.length > 0 ? Math.round(totalSpent / revenueOrders.length) : 0,
       last_order_at: activeOrders[0]?.created_at || null,
     });
   } catch (error) {

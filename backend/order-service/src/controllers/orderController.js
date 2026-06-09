@@ -770,7 +770,10 @@ export const getOrders = async (req, res, next) => {
       limit,
       offset,
       distinct: true,
-      include: getOrderIncludes({ includeHistory: false, includeWarranties: false }),
+      include: getOrderIncludes({
+        includeHistory: req.query.include_history === 'true',
+        includeWarranties: false,
+      }),
       order: [['created_at', 'DESC']],
     });
 

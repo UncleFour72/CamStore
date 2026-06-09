@@ -91,32 +91,29 @@ export default function AdminDashboard() {
     {
       label: 'Doanh thu tháng',
       value: formatPrice(metrics.monthly_revenue || 0),
-      change: 'Tháng hiện tại',
+      change: 'Đã giao + đã thanh toán',
       icon: Banknote,
       tone: 'blue',
     },
     {
-      label: 'Đơn hàng mới',
-      value: Number(metrics.orders_count || 0).toLocaleString('vi-VN'),
-      change: 'Theo bộ lọc tháng',
+      label: 'Đơn ghi nhận doanh thu',
+      value: Number(metrics.completed_orders_count ?? metrics.orders_count ?? 0).toLocaleString('vi-VN'),
+      change: `${Number(metrics.created_orders_count || 0).toLocaleString('vi-VN')} đơn đã tạo`,
       icon: ShoppingBag,
       tone: 'indigo',
+    },
+    {
+      label: 'Giá trị đơn trung bình',
+      value: formatPrice(metrics.average_order_value || 0),
+      change: 'Tính trên đơn ghi nhận',
+      icon: Target,
+      tone: 'orange',
     },
     {
       label: 'Khách hàng mới',
       value: Number(metrics.new_customers_count || 0).toLocaleString('vi-VN'),
       change: 'Tài khoản customer',
       icon: UserPlus,
-      tone: 'orange',
-    },
-    {
-      label: 'Tỷ lệ chuyển đổi',
-      value:
-        metrics.conversion_rate === null || metrics.conversion_rate === undefined
-          ? 'Chưa có dữ liệu'
-          : `${metrics.conversion_rate}%`,
-      change: metrics.visitors_count ? `${metrics.visitors_count} lượt truy cập` : 'Cần truyền visitors',
-      icon: Target,
       tone: 'red',
     },
   ];
@@ -164,9 +161,9 @@ export default function AdminDashboard() {
           <div className="admin-card-head">
             <div>
               <h2>Doanh thu 7 ngày qua</h2>
-              <p>Doanh thu chỉ tính các đơn đang hoạt động, không tính đơn đã hủy.</p>
+              <p>Chỉ ghi nhận đơn đã giao và có thanh toán hoàn tất, không tính đơn đang xử lý hoặc đã hủy.</p>
             </div>
-            <span className="chart-legend">Doanh số</span>
+            <span className="chart-legend">Doanh thu</span>
           </div>
           <div className="admin-line-chart" aria-label="Biểu đồ doanh thu">
             {loading ? (
