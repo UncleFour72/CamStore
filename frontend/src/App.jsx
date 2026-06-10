@@ -8,6 +8,7 @@ import BlogDetailPage from './pages/BlogDetailPage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import HomePage from './pages/HomePage.jsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import MockPaymentPage from './pages/MockPaymentPage.jsx';
 import OrderHistoryPage from './pages/OrderHistoryPage.jsx';
@@ -16,6 +17,7 @@ import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import ProductListPage from './pages/ProductListPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import AdminBlog from './pages/admin/AdminBlog.jsx';
 import AdminCategories from './pages/admin/AdminCategories.jsx';
 import AdminCustomers from './pages/admin/AdminCustomers.jsx';
@@ -59,7 +61,7 @@ function AdminRoute({ children }) {
 function RootLayout() {
   const location = useLocation();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  const isAuthRoute = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthRoute = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
 
   if (isAuthenticated && user?.role === 'admin' && !location.pathname.startsWith('/admin')) {
     return <Navigate to="/admin" replace />;
@@ -108,6 +110,8 @@ export default function App() {
           <Route path="payment/mock-checkout" element={<MockPaymentPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route
             path="profile"
             element={

@@ -1534,7 +1534,7 @@ img {
   color: #aebdca;
 }
 
-.auth-form-modern input:focus,
+.auth-form-modern label > input:focus,
 .auth-password-field:focus-within {
   border-color: #006591;
   box-shadow: 0 0 0 4px rgba(0, 101, 145, 0.12);
@@ -1550,7 +1550,13 @@ img {
 .auth-password-field input {
   min-height: 50px;
   border: 0;
-  background: transparent;
+  background: inherit;
+  box-shadow: none;
+}
+
+.auth-password-field input:focus {
+  border: 0;
+  box-shadow: none;
 }
 
 .auth-password-field button {
@@ -1559,9 +1565,26 @@ img {
   border: 0;
   display: grid;
   place-items: center;
-  background: transparent;
+  background: inherit;
   color: #667482;
   cursor: pointer;
+}
+
+.auth-form-row,
+.auth-remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: -4px;
+  font-size: 14px;
+}
+
+.auth-form-row a,
+.auth-remember-row a {
+  color: #006591;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .auth-remember {
@@ -1570,6 +1593,14 @@ img {
   align-items: center;
   gap: 10px !important;
   font-size: 15px !important;
+}
+
+.auth-remember-row .auth-remember {
+  min-width: 0;
+}
+
+.auth-remember-row .auth-remember span {
+  display: inline;
 }
 
 .auth-remember input {
@@ -1590,6 +1621,35 @@ img {
   font-size: 17px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.auth-result-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #b9d8c6;
+  border-radius: 12px;
+  background: #f2fbf6;
+  color: #163322;
+}
+
+.auth-result-card svg {
+  color: #04789d;
+}
+
+.auth-result-card strong {
+  display: block;
+  font-size: 16px;
+}
+
+.auth-result-card p {
+  margin: 3px 0 0;
+  color: #3b5144;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .auth-divider {
@@ -1625,25 +1685,11 @@ img {
   gap: 14px;
 }
 
-.google-signin-host {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.google-signin-host > div {
+.auth-social-button {
   width: 100%;
-}
-
-.google-signin-host iframe {
-  margin: 0 auto !important;
-}
-
-.auth-social-grid button {
-  min-height: 48px;
+  min-height: 52px;
   border: 1px solid #b8c8d8;
-  border-radius: 9px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1651,14 +1697,28 @@ img {
   background: #f8fcff;
   color: #111820;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
+  appearance: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+button.auth-social-button:hover {
+  border-color: #7da9c2;
+  box-shadow: 0 8px 18px rgba(17, 24, 32, 0.08);
+  transform: translateY(-1px);
+}
+
+.auth-social-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
 }
 
 .google-mark,
 .facebook-mark {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -1671,10 +1731,19 @@ img {
 }
 
 .facebook-mark {
+  position: relative;
   color: #ffffff;
   background: #1877f2;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
   font-family: Arial, sans-serif;
-  font-size: 22px;
+}
+
+.facebook-mark::before {
+  content: "f";
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(2px);
 }
 
 .auth-terms {
@@ -7426,7 +7495,7 @@ img {
   .auth-heading p,
   .auth-tabs a,
   .auth-form-modern label,
-  .auth-social-grid button {
+  .auth-social-button {
     font-size: 16px;
   }
 

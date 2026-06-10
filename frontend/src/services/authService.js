@@ -16,6 +16,14 @@ export const register = (payload) => {
   return api.post('/auth/register', payload).then(unwrapData);
 };
 
+export const requestPasswordReset = (payload) => {
+  return api.post('/auth/forgot-password', payload).then(unwrapData);
+};
+
+export const resetPassword = (payload) => {
+  return api.post('/auth/reset-password', payload).then(unwrapData);
+};
+
 export const getProfile = () => {
   return api.get('/auth/profile').then(unwrapData);
 };

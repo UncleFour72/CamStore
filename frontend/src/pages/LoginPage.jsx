@@ -1,4 +1,4 @@
-import { Camera, Eye, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Camera, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -98,33 +98,36 @@ export default function LoginPage() {
             <Link to="/register">Đăng ký</Link>
           </div>
 
-          <form className="auth-form-modern" onSubmit={handleSubmit}>
+          <form className="auth-form-modern" onSubmit={handleSubmit} autoComplete="off">
             <label>
-              <span>Email hoặc Số điện thoại</span>
+              <span>Email hoặc số điện thoại</span>
               <input
                 type="email"
                 name="email"
                 value={form.email}
                 onChange={updateField}
+                aria-label="Email"
                 placeholder="name@company.com"
-                autoComplete="email"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
             </label>
 
             <label>
-              <span>
-                Mật khẩu
-                <Link to="/login">Quên mật khẩu?</Link>
-              </span>
+              <span>Mật khẩu</span>
               <div className="auth-password-field">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={form.password}
                   onChange={updateField}
+                  aria-label="Mật khẩu"
                   placeholder="••••••••"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   required
                 />
                 <button
@@ -132,17 +135,20 @@ export default function LoginPage() {
                   aria-label="Hiện mật khẩu"
                   onClick={() => setShowPassword((value) => !value)}
                 >
-                  <Eye size={20} />
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </label>
 
             {error && <p className="form-error">{error}</p>}
 
-            <label className="auth-remember">
-              <input type="checkbox" />
-              <span>Duy trì đăng nhập trong 30 ngày</span>
-            </label>
+            <div className="auth-remember-row">
+              <label className="auth-remember">
+                <input type="checkbox" />
+                <span>Duy trì đăng nhập trong 30 ngày</span>
+              </label>
+              <Link to="/forgot-password">Quên mật khẩu?</Link>
+            </div>
 
             <button className="auth-submit" type="submit" disabled={isLoading}>
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập tài khoản'}

@@ -74,6 +74,34 @@ const ensureSocialAuthSchema = async () => {
   `);
 };
 
+const ensurePasswordResetSchema = async () => {
+  const [tables] = await sequelize.query("SHOW TABLES LIKE 'users'");
+
+  if (tables.length === 0) {
+    return;
+  }
+
+  await sequelize.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash VARCHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_password_reset_tokens_token_hash (token_hash),
+      INDEX idx_password_reset_tokens_user_id (user_id),
+      INDEX idx_password_reset_tokens_expires_at (expires_at),
+      INDEX idx_password_reset_tokens_used_at (used_at),
+      CONSTRAINT fk_password_reset_tokens_user_id
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+};
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -134,6 +162,7 @@ app.use((error, req, res, next) => {
 const start = async () => {
   await sequelize.authenticate();
   await ensureSocialAuthSchema();
+  await ensurePasswordResetSchema();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });

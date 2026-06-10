@@ -33,6 +33,14 @@ const MESSAGE_MAP = {
   'User account is disabled': 'Tài khoản đã bị khóa. Vui lòng liên hệ CamStore.',
   'Email is already registered': 'Email này đã được đăng ký.',
   'Password must contain at least 6 characters': 'Mật khẩu phải có ít nhất 6 ký tự.',
+  'email is required': 'Vui lòng nhập email.',
+  'token and password are required': 'Liên kết đặt lại mật khẩu không hợp lệ hoặc thiếu mật khẩu mới.',
+  'If this email exists, a password reset link has been sent':
+    'Nếu email tồn tại trong hệ thống, CamStore đã gửi liên kết đặt lại mật khẩu.',
+  'Password reset email could not be sent':
+    'Chưa gửi được email đặt lại mật khẩu. Vui lòng kiểm tra cấu hình SMTP hoặc trạng thái kích hoạt Brevo.',
+  'Invalid or expired password reset token': 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+  'Password reset successfully': 'Đặt lại mật khẩu thành công.',
   'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
   'Authentication token is required': 'Vui lòng đăng nhập để tiếp tục.',
   'Invalid or expired token': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',

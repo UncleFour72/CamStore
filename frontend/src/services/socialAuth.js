@@ -65,6 +65,10 @@ export const initializeGoogleButton = async ({ buttonElement, onCredential, text
   }
 
   if (buttonElement) {
+    const buttonWidth = Math.round(
+      buttonElement.getBoundingClientRect().width || buttonElement.parentElement?.getBoundingClientRect().width || 260
+    );
+
     buttonElement.innerHTML = '';
     window.google.accounts.id.renderButton(buttonElement, {
       theme: 'outline',
@@ -73,9 +77,72 @@ export const initializeGoogleButton = async ({ buttonElement, onCredential, text
       shape: 'rectangular',
       text,
       locale: 'vi',
-      width: Math.max(180, Math.min(buttonElement.offsetWidth || 220, 400)),
+      width: Math.max(220, Math.min(buttonWidth - 20, 400)),
     });
   }
+};
+
+export const requestGoogleCredential = async () => {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    throw new Error(socialMessages.googleNotConfigured);
+  }
+
+  await loadScript('google-identity-services', 'https://accounts.google.com/gsi/client');
+
+  if (!window.google?.accounts?.id) {
+    throw new Error(socialMessages.googleNotReady);
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const failTimer = window.setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error('Không thể mở đăng nhập Google. Vui lòng thử lại.'));
+      }
+    }, 45000);
+
+    window.__camstoreGoogleCredentialCallback = (credential) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      window.clearTimeout(failTimer);
+      resolve(credential);
+    };
+
+    if (window.__camstoreGoogleClientId !== clientId) {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback(response) {
+          if (response?.credential) {
+            window.__camstoreGoogleCredentialCallback?.(response.credential);
+          }
+        },
+        use_fedcm_for_prompt: true,
+      });
+      window.__camstoreGoogleClientId = clientId;
+    }
+
+    window.google.accounts.id.prompt((notification) => {
+      if (settled) {
+        return;
+      }
+
+      const blocked =
+        notification.isNotDisplayed?.() ||
+        notification.isSkippedMoment?.();
+
+      if (blocked) {
+        settled = true;
+        window.clearTimeout(failTimer);
+        reject(new Error('Google chưa thể hiển thị hộp thoại đăng nhập. Hãy kiểm tra OAuth origin hoặc thử lại.'));
+      }
+    });
+  });
 };
 
 export const requestFacebookAccessToken = async () => {

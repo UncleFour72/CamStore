@@ -1,4 +1,4 @@
-import { Camera, Eye, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Camera, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
@@ -100,7 +100,7 @@ export default function RegisterPage() {
             </Link>
           </div>
 
-          <form className="auth-form-modern" onSubmit={handleSubmit}>
+          <form className="auth-form-modern" onSubmit={handleSubmit} autoComplete="off">
             <label>
               <span>Họ và tên</span>
               <input
@@ -108,8 +108,11 @@ export default function RegisterPage() {
                 name="name"
                 value={form.name}
                 onChange={updateField}
+                aria-label="Họ và tên"
                 placeholder="Nguyễn Văn A"
-                autoComplete="name"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
             </label>
@@ -121,8 +124,11 @@ export default function RegisterPage() {
                 name="email"
                 value={form.email}
                 onChange={updateField}
+                aria-label="Email"
                 placeholder="name@company.com"
-                autoComplete="email"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
             </label>
@@ -134,8 +140,11 @@ export default function RegisterPage() {
                 name="phone"
                 value={form.phone}
                 onChange={updateField}
+                aria-label="Số điện thoại"
                 placeholder="0901 234 567"
-                autoComplete="tel"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
               />
             </label>
 
@@ -147,8 +156,11 @@ export default function RegisterPage() {
                   name="password"
                   value={form.password}
                   onChange={updateField}
+                  aria-label="Mật khẩu"
                   placeholder="••••••••"
                   autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   minLength={6}
                   required
                 />
@@ -157,7 +169,7 @@ export default function RegisterPage() {
                   aria-label="Hiện mật khẩu"
                   onClick={() => setShowPassword((value) => !value)}
                 >
-                  <Eye size={20} />
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </label>
@@ -180,7 +192,6 @@ export default function RegisterPage() {
 
           <SocialAuthButtons
             disabled={isLoading}
-            googleText="signup_with"
             onFacebookAccessToken={handleFacebookAccessToken}
             onGoogleCredential={handleGoogleCredential}
           />

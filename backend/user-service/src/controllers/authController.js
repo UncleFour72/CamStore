@@ -1,5 +1,8 @@
+import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
-import { Address, User, UserIdentity, sequelize } from '../models/index.js';
+import { Op } from 'sequelize';
+import { Address, PasswordResetToken, User, UserIdentity, sequelize } from '../models/index.js';
+import { sendPasswordResetEmail } from '../utils/email.js';
 import { signToken } from '../utils/jwt.js';
 
 const pick = (source, keys) => {
@@ -38,6 +41,25 @@ const createHttpError = (statusCode, message) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+};
+
+const PASSWORD_RESET_RESPONSE_MESSAGE =
+  'If this email exists, a password reset link has been sent';
+
+const getPasswordResetTtlMinutes = () => {
+  const value = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES || 30);
+  return Number.isFinite(value) && value > 0 ? value : 30;
+};
+
+const hashResetToken = (token) => {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+};
+
+const buildResetPasswordUrl = (token) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const url = new URL('/reset-password', frontendUrl);
+  url.searchParams.set('token', token);
+  return url.toString();
 };
 
 const getGoogleClientId = () => process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
@@ -286,6 +308,126 @@ export const login = async (req, res, next) => {
     }
 
     return res.json(issueSession(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ message: 'email is required' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+
+    if (!user || !user.is_active) {
+      return res.json({ message: PASSWORD_RESET_RESPONSE_MESSAGE });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashResetToken(token);
+    const ttlMinutes = getPasswordResetTtlMinutes();
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+
+    await PasswordResetToken.update(
+      { used_at: new Date() },
+      {
+        where: {
+          user_id: user.id,
+          used_at: null,
+        },
+      }
+    );
+
+    const resetToken = await PasswordResetToken.create({
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    });
+
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: `${user.first_name} ${user.last_name}`.trim(),
+        resetUrl: buildResetPasswordUrl(token),
+        expiresInMinutes: ttlMinutes,
+      });
+    } catch (mailError) {
+      await resetToken.update({ used_at: new Date() });
+      console.error('Failed to send password reset email:', mailError);
+      throw createHttpError(503, 'Password reset email could not be sent');
+    }
+
+    return res.json({ message: PASSWORD_RESET_RESPONSE_MESSAGE });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const token = String(req.body.token || '').trim();
+    const password = req.body.password || req.body.new_password;
+
+    if (!token || !password) {
+      return res.status(400).json({ message: 'token and password are required' });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({ message: 'Password must contain at least 6 characters' });
+    }
+
+    const resetToken = await PasswordResetToken.findOne({
+      where: {
+        token_hash: hashResetToken(token),
+        used_at: null,
+        expires_at: {
+          [Op.gt]: new Date(),
+        },
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+        },
+      ],
+    });
+
+    if (!resetToken?.user || !resetToken.user.is_active) {
+      return res.status(400).json({ message: 'Invalid or expired password reset token' });
+    }
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      resetToken.user.password = password;
+      await resetToken.user.save({ transaction });
+      await resetToken.update({ used_at: new Date() }, { transaction });
+
+      await PasswordResetToken.update(
+        { used_at: new Date() },
+        {
+          where: {
+            user_id: resetToken.user_id,
+            used_at: null,
+            id: {
+              [Op.ne]: resetToken.id,
+            },
+          },
+          transaction,
+        }
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+
+    return res.json({ message: 'Password reset successfully' });
   } catch (error) {
     return next(error);
   }
