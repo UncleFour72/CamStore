@@ -3,6 +3,8 @@ import {
   changePassword,
   getProfile,
   login,
+  loginWithFacebook,
+  loginWithGoogle,
   register,
   updateProfile,
 } from '../controllers/authController.js';
@@ -12,6 +14,8 @@ const router = Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', loginWithGoogle);
+router.post('/facebook', loginWithFacebook);
 router.get('/profile', authenticate, getProfile);
 router.put('/profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);

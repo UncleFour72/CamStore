@@ -1,4 +1,5 @@
-import { Address, User } from '../models/index.js';
+import { OAuth2Client } from 'google-auth-library';
+import { Address, User, UserIdentity, sequelize } from '../models/index.js';
 import { signToken } from '../utils/jwt.js';
 
 const pick = (source, keys) => {
@@ -32,6 +33,200 @@ const issueSession = (user) => ({
   user,
   token: signToken(user),
 });
+
+const createHttpError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const getGoogleClientId = () => process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+
+let googleClient = null;
+
+const getGoogleClient = () => {
+  const clientId = getGoogleClientId();
+
+  if (!clientId) {
+    throw createHttpError(503, 'Google login is not configured');
+  }
+
+  if (!googleClient) {
+    googleClient = new OAuth2Client(clientId);
+  }
+
+  return googleClient;
+};
+
+const splitName = ({ firstName, lastName, name, email }) => {
+  const first = String(firstName || '').trim();
+  const last = String(lastName || '').trim();
+
+  if (first && last) {
+    return {
+      first_name: first,
+      last_name: last,
+    };
+  }
+
+  const fallbackName = String(name || email?.split('@')[0] || 'CamStore Customer').trim();
+  const [parsedFirst, ...rest] = fallbackName.split(/\s+/).filter(Boolean);
+
+  return {
+    first_name: first || parsedFirst || 'CamStore',
+    last_name: last || rest.join(' ') || first || parsedFirst || 'Customer',
+  };
+};
+
+const findLinkedIdentity = (provider, providerUserId) => {
+  return UserIdentity.findOne({
+    where: {
+      provider,
+      provider_user_id: String(providerUserId),
+    },
+    include: [
+      {
+        model: User,
+        as: 'user',
+      },
+    ],
+  });
+};
+
+const ensureCustomerCanUseSocialLogin = (user) => {
+  if (!user.is_active) {
+    throw createHttpError(403, 'User account is disabled');
+  }
+
+  if (user.role !== 'customer') {
+    throw createHttpError(403, 'Social login is only available for customer accounts');
+  }
+};
+
+const findOrCreateSocialUser = async ({
+  provider,
+  providerUserId,
+  email,
+  emailVerified = false,
+  firstName,
+  lastName,
+  name,
+  avatarUrl,
+  metadata = {},
+}) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw createHttpError(400, `${provider} account did not provide an email address`);
+  }
+
+  const existingIdentity = await findLinkedIdentity(provider, providerUserId);
+
+  if (existingIdentity?.user) {
+    ensureCustomerCanUseSocialLogin(existingIdentity.user);
+    return existingIdentity.user;
+  }
+
+  if (!emailVerified) {
+    throw createHttpError(400, `${provider} email is not verified`);
+  }
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    let user = await User.findOne({
+      where: { email: normalizedEmail },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (user) {
+      ensureCustomerCanUseSocialLogin(user);
+
+      const existingProviderLink = await UserIdentity.findOne({
+        where: {
+          user_id: user.id,
+          provider,
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (existingProviderLink && String(existingProviderLink.provider_user_id) !== String(providerUserId)) {
+        throw createHttpError(409, `${provider} login is already linked to this customer account`);
+      }
+    } else {
+      const names = splitName({ firstName, lastName, name, email: normalizedEmail });
+      user = await User.create(
+        {
+          email: normalizedEmail,
+          password: null,
+          first_name: names.first_name,
+          last_name: names.last_name,
+          avatar_url: avatarUrl || null,
+          role: 'customer',
+          is_active: true,
+        },
+        { transaction }
+      );
+    }
+
+    await UserIdentity.create(
+      {
+        user_id: user.id,
+        provider,
+        provider_user_id: String(providerUserId),
+        provider_email: normalizedEmail,
+        metadata,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+    return user;
+  } catch (error) {
+    await transaction.rollback();
+
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      const identity = await findLinkedIdentity(provider, providerUserId);
+
+      if (identity?.user) {
+        ensureCustomerCanUseSocialLogin(identity.user);
+        return identity.user;
+      }
+    }
+
+    throw error;
+  }
+};
+
+const buildFacebookUrl = (path, params = {}) => {
+  const version = process.env.FACEBOOK_GRAPH_VERSION || 'v25.0';
+  const url = new URL(`https://graph.facebook.com/${version}${path}`);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  return url;
+};
+
+const requestFacebookJson = async (path, params = {}) => {
+  const response = await fetch(buildFacebookUrl(path, params));
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || data?.error) {
+    throw createHttpError(401, data?.error?.message || 'Facebook token verification failed');
+  }
+
+  return data;
+};
+
+const buildFacebookInternalEmail = (facebookUserId) => {
+  return `facebook_${facebookUserId}@facebook.camstore.local`;
+};
 
 export const register = async (req, res, next) => {
   try {
@@ -89,6 +284,103 @@ export const login = async (req, res, next) => {
     if (!user.is_active) {
       return res.status(403).json({ message: 'User account is disabled' });
     }
+
+    return res.json(issueSession(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const loginWithGoogle = async (req, res, next) => {
+  try {
+    const credential = req.body.credential || req.body.id_token;
+
+    if (!credential) {
+      return res.status(400).json({ message: 'Google credential is required' });
+    }
+
+    const ticket = await getGoogleClient().verifyIdToken({
+      idToken: String(credential),
+      audience: getGoogleClientId(),
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload?.sub) {
+      return res.status(401).json({ message: 'Invalid Google credential' });
+    }
+
+    const user = await findOrCreateSocialUser({
+      provider: 'google',
+      providerUserId: payload.sub,
+      email: payload.email,
+      emailVerified: payload.email_verified === true || payload.email_verified === 'true',
+      firstName: payload.given_name,
+      lastName: payload.family_name,
+      name: payload.name,
+      avatarUrl: payload.picture,
+      metadata: {
+        locale: payload.locale,
+        hosted_domain: payload.hd,
+      },
+    });
+
+    return res.json(issueSession(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const loginWithFacebook = async (req, res, next) => {
+  try {
+    const accessToken = req.body.access_token;
+    const appId = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID;
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+
+    if (!accessToken) {
+      return res.status(400).json({ message: 'Facebook access token is required' });
+    }
+
+    if (!appId || !appSecret) {
+      return res.status(503).json({ message: 'Facebook login is not configured' });
+    }
+
+    const debugData = await requestFacebookJson('/debug_token', {
+      input_token: accessToken,
+      access_token: `${appId}|${appSecret}`,
+    });
+    const tokenInfo = debugData.data || {};
+
+    if (!tokenInfo.is_valid || String(tokenInfo.app_id) !== String(appId) || !tokenInfo.user_id) {
+      return res.status(401).json({ message: 'Invalid Facebook access token' });
+    }
+
+    const profile = await requestFacebookJson('/me', {
+      fields: 'id,email,name,first_name,last_name,picture.type(large)',
+      access_token: accessToken,
+    });
+
+    if (String(profile.id) !== String(tokenInfo.user_id)) {
+      return res.status(401).json({ message: 'Facebook token user mismatch' });
+    }
+
+    const facebookEmail = profile.email || buildFacebookInternalEmail(profile.id);
+
+    const user = await findOrCreateSocialUser({
+      provider: 'facebook',
+      providerUserId: profile.id,
+      email: facebookEmail,
+      emailVerified: true,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      name: profile.name,
+      avatarUrl: profile.picture?.data?.url,
+      metadata: {
+        provider_email_missing: !profile.email,
+        provider_email: profile.email || null,
+        token_expires_at: tokenInfo.expires_at || null,
+        data_access_expires_at: tokenInfo.data_access_expires_at || null,
+      },
+    });
 
     return res.json(issueSession(user));
   } catch (error) {

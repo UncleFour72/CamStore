@@ -13,6 +13,22 @@ const api = axios.create({
 });
 
 const MESSAGE_MAP = {
+  'Google login is not configured': 'Đăng nhập Google chưa được cấu hình.',
+  'Google credential is required': 'Thiếu thông tin đăng nhập Google.',
+  'Invalid Google credential': 'Thông tin đăng nhập Google không hợp lệ.',
+  'google email is not verified': 'Email Google chưa được xác minh.',
+  'google login is already linked to this customer account':
+    'Tài khoản khách hàng này đã liên kết với một tài khoản Google khác.',
+  'Facebook login is not configured': 'Đăng nhập Facebook chưa được cấu hình.',
+  'Facebook access token is required': 'Thiếu thông tin đăng nhập Facebook.',
+  'Invalid Facebook access token': 'Thông tin đăng nhập Facebook không hợp lệ.',
+  'Facebook token user mismatch': 'Thông tin đăng nhập Facebook không khớp tài khoản.',
+  'facebook login is already linked to this customer account':
+    'Tài khoản khách hàng này đã liên kết với một tài khoản Facebook khác.',
+  'Facebook account did not provide an email address':
+    'Facebook chưa cung cấp email. Vui lòng thêm email vào Facebook hoặc đăng ký bằng email.',
+  'Social login is only available for customer accounts':
+    'Đăng nhập mạng xã hội chỉ áp dụng cho tài khoản khách hàng.',
   'Invalid email or password': 'Email hoặc mật khẩu không đúng.',
   'User account is disabled': 'Tài khoản đã bị khóa. Vui lòng liên hệ CamStore.',
   'Email is already registered': 'Email này đã được đăng ký.',

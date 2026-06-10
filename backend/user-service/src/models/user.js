@@ -6,6 +6,10 @@ const HASH_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 12);
 
 class User extends Model {
   async comparePassword(candidatePassword) {
+    if (!this.password) {
+      return false;
+    }
+
     return bcrypt.compare(candidatePassword, this.password);
   }
 
@@ -38,10 +42,17 @@ User.init(
     },
     password: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
       validate: {
-        len: [6, 255],
-        notEmpty: true,
+        validPassword(value) {
+          if (value === null || value === undefined || value === '') {
+            return;
+          }
+
+          if (String(value).length < 6 || String(value).length > 255) {
+            throw new Error('Password must contain between 6 and 255 characters');
+          }
+        },
       },
     },
     first_name: {

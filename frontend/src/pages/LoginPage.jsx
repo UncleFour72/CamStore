@@ -1,9 +1,10 @@
 import { Camera, Eye, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import SocialAuthButtons from '../components/common/SocialAuthButtons.jsx';
 import { assets } from '../data/assets.js';
-import { clearError, loginUser } from '../store/slices/authSlice.js';
+import { clearError, loginUser, loginWithFacebook, loginWithGoogle } from '../store/slices/authSlice.js';
 
 export default function LoginPage() {
   const dispatch = useDispatch();
@@ -33,6 +34,30 @@ export default function LoginPage() {
       // Redux state already carries the visible error.
     }
   }
+
+  const handleSocialLogin = useCallback(
+    async (action, payload) => {
+      dispatch(clearError());
+
+      try {
+        const result = await dispatch(action(payload)).unwrap();
+        navigate(result.user?.role === 'admin' ? '/admin' : redirectTo, { replace: true });
+      } catch {
+        // Redux state already carries the visible error.
+      }
+    },
+    [dispatch, navigate, redirectTo]
+  );
+
+  const handleGoogleCredential = useCallback(
+    (credential) => handleSocialLogin(loginWithGoogle, credential),
+    [handleSocialLogin]
+  );
+
+  const handleFacebookAccessToken = useCallback(
+    (accessToken) => handleSocialLogin(loginWithFacebook, accessToken),
+    [handleSocialLogin]
+  );
 
   return (
     <main className="auth-screen">
@@ -128,16 +153,11 @@ export default function LoginPage() {
             <span>HOẶC TIẾP TỤC VỚI</span>
           </div>
 
-          <div className="auth-social-grid">
-            <button type="button">
-              <span className="google-mark">G</span>
-              Google
-            </button>
-            <button type="button">
-              <span className="facebook-mark">f</span>
-              Facebook
-            </button>
-          </div>
+          <SocialAuthButtons
+            disabled={isLoading}
+            onFacebookAccessToken={handleFacebookAccessToken}
+            onGoogleCredential={handleGoogleCredential}
+          />
 
           <p className="auth-terms">
             Bằng việc tiếp tục, bạn đồng ý với <Link to="/services/warranty">Điều khoản dịch vụ</Link> và{' '}

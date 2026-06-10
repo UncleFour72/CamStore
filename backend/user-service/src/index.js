@@ -45,6 +45,35 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http:/
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const ensureSocialAuthSchema = async () => {
+  const [tables] = await sequelize.query("SHOW TABLES LIKE 'users'");
+
+  if (tables.length === 0) {
+    return;
+  }
+
+  await sequelize.query('ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL');
+  await sequelize.query(`
+    CREATE TABLE IF NOT EXISTS user_identities (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      provider ENUM('google', 'facebook') NOT NULL,
+      provider_user_id VARCHAR(255) NOT NULL,
+      provider_email VARCHAR(255) NULL,
+      metadata JSON NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_identities_provider_user (provider, provider_user_id),
+      UNIQUE KEY uq_user_identities_user_provider (user_id, provider),
+      INDEX idx_user_identities_provider_email (provider_email),
+      CONSTRAINT fk_user_identities_user_id
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+};
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -104,6 +133,7 @@ app.use((error, req, res, next) => {
 
 const start = async () => {
   await sequelize.authenticate();
+  await ensureSocialAuthSchema();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });

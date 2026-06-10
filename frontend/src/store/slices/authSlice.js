@@ -94,6 +94,36 @@ export const loginUser = createAsyncThunk(
   }
 );
 
+export const loginWithGoogle = createAsyncThunk(
+  'auth/loginWithGoogle',
+  async (credential, { rejectWithValue }) => {
+    try {
+      const response = await authService.loginWithGoogle(credential);
+      return {
+        user: saveSession(response),
+        token: response.token,
+      };
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Đăng nhập Google thất bại'));
+    }
+  }
+);
+
+export const loginWithFacebook = createAsyncThunk(
+  'auth/loginWithFacebook',
+  async (accessToken, { rejectWithValue }) => {
+    try {
+      const response = await authService.loginWithFacebook(accessToken);
+      return {
+        user: saveSession(response),
+        token: response.token,
+      };
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, 'Đăng nhập Facebook thất bại'));
+    }
+  }
+);
+
 export const getProfile = createAsyncThunk(
   'auth/getProfile',
   async (_, { rejectWithValue }) => {
@@ -190,6 +220,12 @@ const authSlice = createSlice({
       .addCase(loginUser.pending, pending)
       .addCase(loginUser.fulfilled, applySession)
       .addCase(loginUser.rejected, rejected('Đăng nhập thất bại'))
+      .addCase(loginWithGoogle.pending, pending)
+      .addCase(loginWithGoogle.fulfilled, applySession)
+      .addCase(loginWithGoogle.rejected, rejected('Đăng nhập Google thất bại'))
+      .addCase(loginWithFacebook.pending, pending)
+      .addCase(loginWithFacebook.fulfilled, applySession)
+      .addCase(loginWithFacebook.rejected, rejected('Đăng nhập Facebook thất bại'))
       .addCase(getProfile.pending, pending)
       .addCase(getProfile.fulfilled, (state, action) => {
         state.isLoading = false;

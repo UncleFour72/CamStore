@@ -1625,6 +1625,21 @@ img {
   gap: 14px;
 }
 
+.google-signin-host {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.google-signin-host > div {
+  width: 100%;
+}
+
+.google-signin-host iframe {
+  margin: 0 auto !important;
+}
+
 .auth-social-grid button {
   min-height: 48px;
   border: 1px solid #b8c8d8;

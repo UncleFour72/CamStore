@@ -4,6 +4,14 @@ export const login = (payload) => {
   return api.post('/auth/login', payload).then(unwrapData);
 };
 
+export const loginWithGoogle = (credential) => {
+  return api.post('/auth/google', { credential }).then(unwrapData);
+};
+
+export const loginWithFacebook = (accessToken) => {
+  return api.post('/auth/facebook', { access_token: accessToken }).then(unwrapData);
+};
+
 export const register = (payload) => {
   return api.post('/auth/register', payload).then(unwrapData);
 };
