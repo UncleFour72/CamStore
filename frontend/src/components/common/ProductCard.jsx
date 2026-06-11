@@ -1,59 +1,42 @@
-import { Heart, ShoppingCart, Star } from 'lucide-react';
-import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { useCart } from '../../hooks/useCart.js';
-import { toggleWishlist } from '../../store/slices/wishlistSlice.js';
-import { formatPrice, getCategoryLabel } from '../../utils/helpers.js';
+import { formatPrice } from '../../utils/helpers.js';
+import Badge from '../ui/Badge.jsx';
 
 export default function ProductCard({ product }) {
-  const dispatch = useDispatch();
-  const { addItem } = useCart();
-  const { productIds, isLoading } = useSelector((state) => state.wishlist);
-  const productApiId = product.productId || product.apiId || product.id;
-  const isWishlisted = productIds.some((id) => Number(id) === Number(productApiId));
+  const productUrl = `/products/${product.id}`;
+  const brand = product.brand || product.eyebrow || '';
 
   return (
-    <article className="product-card">
-      <Link className="product-card-media" to={`/products/${product.id}`}>
-        <img src={product.image} alt={product.name} loading="lazy" />
-        <span className="product-badge">{product.badge}</span>
+    <article className="group grid min-w-0 overflow-hidden rounded-2xl border border-solid border-[#d9e2ec] bg-card shadow-soft transition duration-200 hover:-translate-y-1 hover:border-primary-bright/40 hover:shadow-lift">
+      <Link className="relative block aspect-[4/3] overflow-hidden bg-surface-soft no-underline" to={productUrl}>
+        <img
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
+          src={product.image}
+          alt={product.name}
+          loading="lazy"
+        />
+        {product.badge && (
+          <Badge className="absolute left-3.5 top-3.5" tone="light">
+            {product.badge}
+          </Badge>
+        )}
       </Link>
 
-      <div className="product-card-body">
-        <div className="product-meta-row">
-          <span>{getCategoryLabel(product.category)}</span>
-          <span className="rating">
-            <Star size={15} fill="currentColor" /> {product.rating}
-          </span>
-        </div>
-        <Link className="product-title-link" to={`/products/${product.id}`}>
+      <div className="grid gap-3 p-5">
+        {brand && <span className="text-xs font-extrabold uppercase tracking-[0.04em] text-primary">{brand}</span>}
+
+        <Link
+          className="line-clamp-2 min-h-[48px] text-lg font-extrabold leading-snug text-ink no-underline transition hover:text-primary"
+          to={productUrl}
+        >
           {product.name}
         </Link>
-        <p>{product.tagline}</p>
-        <div className="product-card-footer">
-          <div>
-            <strong>{formatPrice(product.price)}</strong>
-            <small>{formatPrice(product.oldPrice)}</small>
-          </div>
-          <div className="product-actions">
-            <button
-              type="button"
-              className="icon-button subtle"
-              aria-label="Yêu thích"
-              disabled={isLoading}
-              onClick={() => dispatch(toggleWishlist(productApiId))}
-            >
-              <Heart size={19} fill={isWishlisted ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              type="button"
-              className="icon-button primary"
-              aria-label="Thêm vào giỏ"
-              onClick={() => addItem(productApiId)}
-            >
-              <ShoppingCart size={19} />
-            </button>
-          </div>
+
+        <div className="min-w-0">
+          <strong className="block text-xl font-black text-primary">{formatPrice(product.price)}</strong>
+          {product.oldPrice && Number(product.oldPrice) > Number(product.price) ? (
+            <small className="block text-sm text-[#64748b] line-through">{formatPrice(product.oldPrice)}</small>
+          ) : null}
         </div>
       </div>
     </article>

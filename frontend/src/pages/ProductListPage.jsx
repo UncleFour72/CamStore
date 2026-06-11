@@ -1,8 +1,9 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
+import ProductCard from '../components/common/ProductCard.jsx';
 import { storefrontCategories } from '../data/assets.js';
 import { fetchBrands, fetchProducts } from '../store/slices/productSlice.js';
 import { formatPrice } from '../utils/helpers.js';
@@ -188,16 +189,9 @@ export default function ProductListPage() {
                 <p>{error}</p>
               </div>
             ) : products.length > 0 ? (
-              <div className="store-product-grid">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {products.map((product) => (
-                  <Link className="store-product-card" to={`/products/${product.id}`} key={product.id}>
-                    <img src={product.image} alt={product.name} />
-                    <div>
-                      <span>{product.brand}</span>
-                      <strong>{product.name}</strong>
-                      <b>{formatPrice(product.price)}</b>
-                    </div>
-                  </Link>
+                  <ProductCard product={product} key={product.id} />
                 ))}
               </div>
             ) : (

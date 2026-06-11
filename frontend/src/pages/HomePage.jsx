@@ -1,15 +1,15 @@
-import { ArrowRight, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
+import ProductCard from '../components/common/ProductCard.jsx';
 import {
   assets,
   storefrontCategories,
   testimonials,
 } from '../data/assets.js';
 import { fetchProducts } from '../store/slices/productSlice.js';
-import { formatPrice } from '../utils/helpers.js';
 
 export default function HomePage() {
   const dispatch = useDispatch();
@@ -99,17 +99,9 @@ export default function HomePage() {
           {isLoading && bestSellers.length === 0 ? (
             <LoadingSpinner label="Đang tải sản phẩm" />
           ) : bestSellers.length > 0 ? (
-            <div className="home-best-grid">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {bestSellers.map((product) => (
-                <Link className="home-product-card" to={`/products/${product.id}`} key={product.id}>
-                  <img src={product.image} alt={product.name} />
-                  <span>{product.brand}</span>
-                  <strong>{product.name}</strong>
-                  <small>
-                    <Star size={12} fill="currentColor" /> {product.rating.toFixed(1)} ({product.reviews} đánh giá)
-                  </small>
-                  <b>{formatPrice(product.price)}</b>
-                </Link>
+                <ProductCard product={product} key={product.id} />
               ))}
             </div>
           ) : (
