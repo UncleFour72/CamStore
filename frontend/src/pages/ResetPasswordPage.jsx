@@ -1,6 +1,8 @@
-import { Camera, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Camera, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import Button from '../components/ui/Button.jsx';
+import PasswordField from '../components/ui/PasswordField.jsx';
 import { assets } from '../data/assets.js';
 import { resetPassword } from '../services/authService.js';
 
@@ -75,51 +77,44 @@ export default function ResetPasswordPage() {
           </div>
 
           <form className="auth-form-modern" onSubmit={handleSubmit} autoComplete="off">
-            <label>
-              <span>Mật khẩu mới</span>
-              <div className="auth-password-field">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={form.password}
-                  onChange={updateField}
-                  aria-label="Mật khẩu mới"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  minLength={6}
-                  required
-                />
-                <button type="button" aria-label="Hiện mật khẩu" onClick={() => setShowPassword((value) => !value)}>
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </label>
+            <PasswordField
+              aria-label="Mật khẩu mới"
+              autoComplete="new-password"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Mật khẩu mới"
+              minLength={6}
+              name="password"
+              onChange={updateField}
+              onToggle={() => setShowPassword((value) => !value)}
+              placeholder="••••••••"
+              required
+              showPassword={showPassword}
+              value={form.password}
+            />
 
-            <label>
-              <span>Nhập lại mật khẩu</span>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="confirmPassword"
-                value={form.confirmPassword}
-                onChange={updateField}
-                aria-label="Nhập lại mật khẩu"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                data-lpignore="true"
-                data-form-type="other"
-                minLength={6}
-                required
-              />
-            </label>
+            <PasswordField
+              aria-label="Nhập lại mật khẩu"
+              autoComplete="new-password"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Nhập lại mật khẩu"
+              minLength={6}
+              name="confirmPassword"
+              onChange={updateField}
+              onToggle={() => setShowPassword((value) => !value)}
+              placeholder="••••••••"
+              required
+              showPassword={showPassword}
+              value={form.confirmPassword}
+            />
 
             {message && <p className="form-success">{message}</p>}
             {error && <p className="form-error">{error}</p>}
 
-            <button className="auth-submit" type="submit" disabled={isSubmitting || !token}>
+            <Button fullWidth type="submit" disabled={isSubmitting || !token}>
               {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
-            </button>
+            </Button>
           </form>
 
           <p className="auth-terms">

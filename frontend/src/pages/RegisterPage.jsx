@@ -1,8 +1,11 @@
-import { Camera, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Camera, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import SocialAuthButtons from '../components/common/SocialAuthButtons.jsx';
+import Button from '../components/ui/Button.jsx';
+import PasswordField from '../components/ui/PasswordField.jsx';
+import TextField from '../components/ui/TextField.jsx';
 import { assets } from '../data/assets.js';
 import { clearError, loginWithFacebook, loginWithGoogle, registerUser } from '../store/slices/authSlice.js';
 
@@ -101,78 +104,62 @@ export default function RegisterPage() {
           </div>
 
           <form className="auth-form-modern" onSubmit={handleSubmit} autoComplete="off">
-            <label>
-              <span>Họ và tên</span>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={updateField}
-                aria-label="Họ và tên"
-                placeholder="Nguyễn Văn A"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                required
-              />
-            </label>
+            <TextField
+              aria-label="Họ và tên"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Họ và tên"
+              name="name"
+              onChange={updateField}
+              placeholder="Nguyễn Văn A"
+              required
+              type="text"
+              value={form.name}
+            />
 
-            <label>
-              <span>Email</span>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={updateField}
-                aria-label="Email"
-                placeholder="name@company.com"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                required
-              />
-            </label>
+            <TextField
+              aria-label="Email"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Email"
+              name="email"
+              onChange={updateField}
+              placeholder="name@company.com"
+              required
+              type="email"
+              value={form.email}
+            />
 
-            <label>
-              <span>Số điện thoại</span>
-              <input
-                type="tel"
-                name="phone"
-                value={form.phone}
-                onChange={updateField}
-                aria-label="Số điện thoại"
-                placeholder="0901 234 567"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-              />
-            </label>
+            <TextField
+              aria-label="Số điện thoại"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Số điện thoại"
+              name="phone"
+              onChange={updateField}
+              placeholder="0901 234 567"
+              type="tel"
+              value={form.phone}
+            />
 
-            <label>
-              <span>Mật khẩu</span>
-              <div className="auth-password-field">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={form.password}
-                  onChange={updateField}
-                  aria-label="Mật khẩu"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  minLength={6}
-                  required
-                />
-                <button
-                  type="button"
-                  aria-label="Hiện mật khẩu"
-                  onClick={() => setShowPassword((value) => !value)}
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </label>
+            <PasswordField
+              aria-label="Mật khẩu"
+              autoComplete="new-password"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Mật khẩu"
+              minLength={6}
+              name="password"
+              onChange={updateField}
+              onToggle={() => setShowPassword((value) => !value)}
+              placeholder="••••••••"
+              required
+              showPassword={showPassword}
+              value={form.password}
+            />
 
             {error && <p className="form-error">{error}</p>}
 
@@ -181,9 +168,9 @@ export default function RegisterPage() {
               <span>Tôi đồng ý nhận thông tin ưu đãi từ CamStore</span>
             </label>
 
-            <button className="auth-submit" type="submit" disabled={isLoading}>
+            <Button fullWidth type="submit" disabled={isLoading}>
               {isLoading ? 'Đang đăng ký...' : 'Đăng ký tài khoản'}
-            </button>
+            </Button>
           </form>
 
           <div className="auth-divider">

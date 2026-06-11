@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Button from '../ui/Button.jsx';
 import { requestFacebookAccessToken, requestGoogleCredential } from '../../services/socialAuth.js';
 
 export default function SocialAuthButtons({
@@ -51,15 +52,15 @@ export default function SocialAuthButtons({
 
   return (
     <>
-      <div className="auth-social-grid">
-        <button className="auth-social-button google-button" type="button" onClick={handleGoogleLogin} disabled={disabled}>
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <Button fullWidth variant="outline" onClick={handleGoogleLogin} disabled={disabled}>
           <span className="google-mark" aria-hidden="true">G</span>
           Google
-        </button>
-        <button className="auth-social-button facebook-button" type="button" onClick={handleFacebookLogin} disabled={disabled}>
+        </Button>
+        <Button fullWidth variant="outline" onClick={handleFacebookLogin} disabled={disabled}>
           <span className="facebook-mark" aria-hidden="true" />
           Facebook
-        </button>
+        </Button>
       </div>
 
       {(facebookError || googleError) && <p className="form-error">{facebookError || googleError}</p>}

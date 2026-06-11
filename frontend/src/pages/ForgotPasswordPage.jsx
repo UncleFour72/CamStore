@@ -1,6 +1,8 @@
 import { Camera, Mail, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import Button from '../components/ui/Button.jsx';
+import TextField from '../components/ui/TextField.jsx';
 import { assets } from '../data/assets.js';
 import { requestPasswordReset } from '../services/authService.js';
 
@@ -60,27 +62,25 @@ export default function ForgotPasswordPage() {
           )}
 
           <form className="auth-form-modern" onSubmit={handleSubmit} autoComplete="off">
-            <label>
-              <span>Email tài khoản</span>
-              <input
-                type="email"
-                name="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                aria-label="Email tài khoản"
-                placeholder="name@company.com"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                required
-              />
-            </label>
+            <TextField
+              aria-label="Email tài khoản"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Email tài khoản"
+              name="email"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="name@company.com"
+              required
+              type="email"
+              value={email}
+            />
 
             {error && <p className="form-error">{error}</p>}
 
-            <button className="auth-submit" type="submit" disabled={isSubmitting}>
+            <Button fullWidth type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Đang gửi...' : 'Gửi'}
-            </button>
+            </Button>
           </form>
 
           <p className="auth-terms">

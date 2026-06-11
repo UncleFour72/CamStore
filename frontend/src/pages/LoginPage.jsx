@@ -1,8 +1,11 @@
-import { Camera, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Camera, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SocialAuthButtons from '../components/common/SocialAuthButtons.jsx';
+import Button from '../components/ui/Button.jsx';
+import PasswordField from '../components/ui/PasswordField.jsx';
+import TextField from '../components/ui/TextField.jsx';
 import { assets } from '../data/assets.js';
 import { clearError, loginUser, loginWithFacebook, loginWithGoogle } from '../store/slices/authSlice.js';
 
@@ -99,46 +102,34 @@ export default function LoginPage() {
           </div>
 
           <form className="auth-form-modern" onSubmit={handleSubmit} autoComplete="off">
-            <label>
-              <span>Email hoặc số điện thoại</span>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={updateField}
-                aria-label="Email"
-                placeholder="name@company.com"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                required
-              />
-            </label>
+            <TextField
+              aria-label="Email"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Email hoặc số điện thoại"
+              name="email"
+              onChange={updateField}
+              placeholder="name@company.com"
+              required
+              type="email"
+              value={form.email}
+            />
 
-            <label>
-              <span>Mật khẩu</span>
-              <div className="auth-password-field">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={form.password}
-                  onChange={updateField}
-                  aria-label="Mật khẩu"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  required
-                />
-                <button
-                  type="button"
-                  aria-label="Hiện mật khẩu"
-                  onClick={() => setShowPassword((value) => !value)}
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </label>
+            <PasswordField
+              aria-label="Mật khẩu"
+              autoComplete="new-password"
+              data-form-type="other"
+              data-lpignore="true"
+              label="Mật khẩu"
+              name="password"
+              onChange={updateField}
+              onToggle={() => setShowPassword((value) => !value)}
+              placeholder="••••••••"
+              required
+              showPassword={showPassword}
+              value={form.password}
+            />
 
             {error && <p className="form-error">{error}</p>}
 
@@ -150,9 +141,9 @@ export default function LoginPage() {
               <Link to="/forgot-password">Quên mật khẩu?</Link>
             </div>
 
-            <button className="auth-submit" type="submit" disabled={isLoading}>
+            <Button fullWidth type="submit" disabled={isLoading}>
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập tài khoản'}
-            </button>
+            </Button>
           </form>
 
           <div className="auth-divider">
