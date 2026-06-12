@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { Category, Product, ProductImage, ProductVariant, sequelize } from './models/index.js';
 import productRoutes from './routes/productRoutes.js';
 import { makeSlug } from './controllers/productController.js';
+import { run as seedProductCatalog } from './seed.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -95,6 +96,20 @@ const bootstrapDefaultVariants = async () => {
   }
 };
 
+const seedCatalogWhenEmpty = async () => {
+  if (process.env.SEED_PRODUCTS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const productCount = await Product.count();
+  if (productCount > 0) {
+    return;
+  }
+
+  console.log('Product catalog is empty. Seeding default CamStore products...');
+  await seedProductCatalog();
+};
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -158,6 +173,7 @@ const start = async () => {
   }
 
   await bootstrapCategories();
+  await seedCatalogWhenEmpty();
   await bootstrapDefaultVariants();
 
   app.listen(port, () => {
