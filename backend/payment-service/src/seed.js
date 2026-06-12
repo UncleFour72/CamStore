@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'url';
 import { Payment, Refund, sequelize } from './models/index.js';
 
 const payments = [
@@ -164,7 +165,7 @@ const seedPayment = async (payload, index) => {
   }
 };
 
-const run = async () => {
+export const run = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
 
@@ -175,11 +176,16 @@ const run = async () => {
   console.log(`Seeded ${payments.length} payments.`);
 };
 
-run()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await sequelize.close();
-  });
+const isMainModule = () =>
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule()) {
+  run()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await sequelize.close();
+    });
+}

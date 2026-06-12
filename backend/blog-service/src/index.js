@@ -3,8 +3,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
-import { sequelize } from './models/index.js';
+import { BlogPost, sequelize } from './models/index.js';
 import blogRoutes from './routes/blogRoutes.js';
+import { run as seedBlogPosts } from './seed.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -75,12 +76,28 @@ app.use((error, req, res, next) => {
   });
 });
 
+const seedBlogPostsWhenEmpty = async () => {
+  if (process.env.SEED_BLOG_POSTS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const postCount = await BlogPost.count();
+  if (postCount > 0) {
+    return;
+  }
+
+  console.log('Blog post table is empty. Seeding default CamStore blog posts...');
+  await seedBlogPosts();
+};
+
 const start = async () => {
   await sequelize.authenticate();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  await seedBlogPostsWhenEmpty();
 
   app.listen(port, () => {
     console.log(`Blog Service running on port ${port}`);

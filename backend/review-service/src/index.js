@@ -3,8 +3,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
-import { sequelize } from './models/index.js';
+import { Review, sequelize } from './models/index.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import { run as seedReviews } from './seed.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -75,12 +76,28 @@ app.use((error, req, res, next) => {
   });
 });
 
+const seedReviewsWhenEmpty = async () => {
+  if (process.env.SEED_REVIEWS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const reviewCount = await Review.count();
+  if (reviewCount > 0) {
+    return;
+  }
+
+  console.log('Review table is empty. Seeding default CamStore reviews...');
+  await seedReviews();
+};
+
 const start = async () => {
   await sequelize.authenticate();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  await seedReviewsWhenEmpty();
 
   app.listen(port, () => {
     console.log(`Review Service running on port ${port}`);

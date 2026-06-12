@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import { pathToFileURL } from 'url';
 import { Notification, sequelize } from './models/index.js';
 
 dotenv.config({
@@ -7,7 +8,7 @@ dotenv.config({
 });
 dotenv.config();
 
-const seed = async () => {
+export const run = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
 
@@ -26,11 +27,16 @@ const seed = async () => {
   console.log('Seeded notification-service.');
 };
 
-seed()
-  .catch((error) => {
-    console.error('Failed to seed notification-service:', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await sequelize.close();
-  });
+const isMainModule = () =>
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule()) {
+  run()
+    .catch((error) => {
+      console.error('Failed to seed notification-service:', error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await sequelize.close();
+    });
+}

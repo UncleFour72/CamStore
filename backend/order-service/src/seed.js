@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'url';
 import { Order, OrderItem, OrderStatusHistory, sequelize } from './models/index.js';
 
 const productImages = [
@@ -254,7 +255,7 @@ const seedOrder = async (payload, index) => {
   );
 };
 
-const run = async () => {
+export const run = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
 
@@ -265,11 +266,16 @@ const run = async () => {
   console.log(`Seeded ${orders.length} orders without warranty records.`);
 };
 
-run()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await sequelize.close();
-  });
+const isMainModule = () =>
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule()) {
+  run()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await sequelize.close();
+    });
+}

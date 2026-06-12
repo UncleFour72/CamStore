@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'url';
 import { BlogPost, sequelize } from './models/index.js';
 
 const posts = [
@@ -182,7 +183,7 @@ const seedPost = async (payload) => {
   await post.update(payload);
 };
 
-const run = async () => {
+export const run = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
 
@@ -193,11 +194,16 @@ const run = async () => {
   console.log(`Seeded ${posts.length} blog posts.`);
 };
 
-run()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await sequelize.close();
-  });
+const isMainModule = () =>
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule()) {
+  run()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await sequelize.close();
+    });
+}

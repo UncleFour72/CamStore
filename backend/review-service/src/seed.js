@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'url';
 import { Review, ReviewImage, sequelize } from './models/index.js';
 
 const reviews = [
@@ -142,7 +143,7 @@ const seedReview = async (payload) => {
   }
 };
 
-const run = async () => {
+export const run = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
 
@@ -153,11 +154,16 @@ const run = async () => {
   console.log(`Seeded ${reviews.length} reviews.`);
 };
 
-run()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await sequelize.close();
-  });
+const isMainModule = () =>
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule()) {
+  run()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await sequelize.close();
+    });
+}

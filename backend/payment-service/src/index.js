@@ -3,8 +3,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
-import { sequelize } from './models/index.js';
+import { Payment, sequelize } from './models/index.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import { run as seedPayments } from './seed.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -75,12 +76,28 @@ app.use((error, req, res, next) => {
   });
 });
 
+const seedPaymentsWhenEmpty = async () => {
+  if (process.env.SEED_PAYMENTS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const paymentCount = await Payment.count();
+  if (paymentCount > 0) {
+    return;
+  }
+
+  console.log('Payment table is empty. Seeding default CamStore payments...');
+  await seedPayments();
+};
+
 const start = async () => {
   await sequelize.authenticate();
 
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  await seedPaymentsWhenEmpty();
 
   app.listen(port, () => {
     console.log(`Payment Service running on port ${port}`);

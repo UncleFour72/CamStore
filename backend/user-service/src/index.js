@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { sequelize, User } from './models/index.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import { run as seedDemoUsers } from './seed.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -38,6 +39,20 @@ const bootstrapAdmin = async () => {
   if (!created && (admin.role !== 'admin' || !admin.is_active)) {
     await admin.update({ role: 'admin', is_active: true });
   }
+};
+
+const seedDemoUsersWhenEmpty = async () => {
+  if (process.env.SEED_USERS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const customerCount = await User.count({ where: { role: 'customer' } });
+  if (customerCount > 0) {
+    return;
+  }
+
+  console.log('Customer table is empty. Seeding default CamStore users...');
+  await seedDemoUsers();
 };
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000')
@@ -169,6 +184,7 @@ const start = async () => {
   }
 
   await bootstrapAdmin();
+  await seedDemoUsersWhenEmpty();
 
   app.listen(port, () => {
     console.log(`User Service running on port ${port}`);

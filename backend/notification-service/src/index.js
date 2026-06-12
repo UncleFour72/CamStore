@@ -4,8 +4,9 @@ import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
 import { ensureDatabaseExists } from './config/database.js';
-import { sequelize } from './models/index.js';
+import { Notification, sequelize } from './models/index.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import { run as seedNotifications } from './seed.js';
 import { setupNotificationWebSocket } from './websocket/notificationSocket.js';
 
 dotenv.config({
@@ -77,6 +78,20 @@ app.use((error, req, res, next) => {
   });
 });
 
+const seedNotificationsWhenEmpty = async () => {
+  if (process.env.SEED_NOTIFICATIONS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const notificationCount = await Notification.count();
+  if (notificationCount > 0) {
+    return;
+  }
+
+  console.log('Notification table is empty. Seeding default CamStore notifications...');
+  await seedNotifications();
+};
+
 const start = async () => {
   await ensureDatabaseExists();
   await sequelize.authenticate();
@@ -84,6 +99,8 @@ const start = async () => {
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  await seedNotificationsWhenEmpty();
 
   const server = app.listen(port, () => {
     console.log(`Notification Service running on port ${port}`);

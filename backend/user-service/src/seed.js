@@ -1,8 +1,8 @@
 import { pathToFileURL } from 'url';
 import { Address, User, sequelize } from './models/index.js';
 
-const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@camstore.vn').trim().toLowerCase();
-const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@123456';
+const adminEmail = (process.env.SEED_ADMIN_EMAIL || process.env.BOOTSTRAP_ADMIN_EMAIL || 'admin@camstore.vn').trim().toLowerCase();
+const adminPassword = process.env.SEED_ADMIN_PASSWORD || process.env.BOOTSTRAP_ADMIN_PASSWORD || 'Admin@123456';
 const resetPassword = process.env.SEED_RESET_ADMIN_PASSWORD === 'true';
 
 const adminPayload = {
@@ -112,7 +112,7 @@ const upsertCustomer = async (payload) => {
   return customer;
 };
 
-const run = async () => {
+export const run = async () => {
   await sequelize.authenticate();
   await sequelize.sync();
 

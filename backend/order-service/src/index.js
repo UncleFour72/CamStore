@@ -4,8 +4,9 @@ import express from 'express';
 import morgan from 'morgan';
 import { fileURLToPath } from 'url';
 import { startBankTransferPaymentJob } from './jobs/bankTransferJob.js';
-import { sequelize } from './models/index.js';
+import { Order, sequelize } from './models/index.js';
 import orderRoutes from './routes/orderRoutes.js';
+import { run as seedOrders } from './seed.js';
 
 dotenv.config({
   path: fileURLToPath(new URL('../../../.env', import.meta.url)),
@@ -104,6 +105,20 @@ const ensureOrderItemVariantColumns = async () => {
   }
 };
 
+const seedOrdersWhenEmpty = async () => {
+  if (process.env.SEED_ORDERS_ON_EMPTY === 'false') {
+    return;
+  }
+
+  const orderCount = await Order.count();
+  if (orderCount > 0) {
+    return;
+  }
+
+  console.log('Order table is empty. Seeding default CamStore orders...');
+  await seedOrders();
+};
+
 const start = async () => {
   await sequelize.authenticate();
   await ensureOrderItemVariantColumns();
@@ -111,6 +126,8 @@ const start = async () => {
   if (process.env.DB_SYNC !== 'false') {
     await sequelize.sync({ alter: process.env.DB_SYNC_ALTER === 'true' });
   }
+
+  await seedOrdersWhenEmpty();
 
   app.listen(port, () => {
     console.log(`Order Service running on port ${port}`);
